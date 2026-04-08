@@ -17,6 +17,12 @@ export async function POST(
   const userId = session.user.id;
   const { sessionId } = params;
 
+  // Reject oversized requests before parsing the body
+  const contentLength = Number(req.headers.get('content-length') ?? 0);
+  if (contentLength > 50 * 1024) {
+    return NextResponse.json({ error: 'Request body too large' }, { status: 413 });
+  }
+
   // Verify session belongs to current user
   const sessionRows = await sql`
     SELECT id, closed_at, end_time
@@ -33,7 +39,7 @@ export async function POST(
   const dbSession = sessionRows[0];
 
   // Reject if session is closed or past end_time
-  if (dbSession.closed_at || (dbSession.end_time && new Date() > new Date(dbSession.end_time))) {
+  if (dbSession.closed_at || (dbSession.end_time && new Date() > new Date(dbSession.end_time as string))) {
     return NextResponse.json({ error: 'Session is closed' }, { status: 410 });
   }
 
@@ -42,6 +48,16 @@ export async function POST(
     question_index: number;
     response_text: string;
   };
+
+  if (typeof response_text !== 'string') {
+    return NextResponse.json({ error: 'Invalid response_text' }, { status: 400 });
+  }
+
+  // 50 KB limit — enough for any reasonable exam answer
+  const MAX_RESPONSE_BYTES = 50 * 1024;
+  if (Buffer.byteLength(response_text, 'utf8') > MAX_RESPONSE_BYTES) {
+    return NextResponse.json({ error: 'response_text exceeds maximum allowed size' }, { status: 413 });
+  }
 
   // Check if a final submission already exists for this (session, question)
   const existing = await sql`
@@ -70,7 +86,7 @@ export async function POST(
     RETURNING id
   `;
 
-  const submissionId: string = upserted[0].id;
+  const submissionId: string = upserted[0].id as string;
 
   // Insert into autosave_history
   await sql`

@@ -32,7 +32,7 @@ export async function POST(
   const dbSession = sessionRows[0];
 
   // Reject if session is closed or past end_time
-  if (dbSession.closed_at || (dbSession.end_time && new Date() > new Date(dbSession.end_time))) {
+  if (dbSession.closed_at || (dbSession.end_time && new Date() > new Date(dbSession.end_time as string))) {
     return NextResponse.json({ error: 'Session is closed' }, { status: 410 });
   }
 
