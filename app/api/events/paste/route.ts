@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     RETURNING id
   `;
 
-  const id: string = inserted[0].id;
+  const id: string = inserted[0].id as string;
 
   // Evaluate flags and update submission
   const { is_flagged, flag_reasons } = await evaluateFlags(submission_id);

@@ -4,6 +4,7 @@ import { sql } from '@/lib/db';
 
 const POLL_INTERVAL_MS = 3000;
 const LOOKBACK_SECONDS = 10;
+const MAX_STREAM_DURATION_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 export async function GET(req: NextRequest) {
   // Authenticate via getToken (works with streaming responses)
@@ -31,12 +32,21 @@ export async function GET(req: NextRequest) {
       // Detect client disconnect via the request signal
       req.signal.addEventListener('abort', () => {
         closed = true;
-        try {
-          controller.close();
-        } catch {
-          // already closed
-        }
+        clearTimeout(timeoutId);
+        try { controller.close(); } catch { /* already closed */ }
       });
+
+      // Hard timeout — close the stream after MAX_STREAM_DURATION_MS
+      const timeoutId = setTimeout(() => {
+        if (!closed) {
+          closed = true;
+          try {
+            const encode = (data: string) => new TextEncoder().encode(data);
+            controller.enqueue(encode(`data: ${JSON.stringify({ type: 'stream_timeout' })}\n\n`));
+            controller.close();
+          } catch { /* already closed */ }
+        }
+      }, MAX_STREAM_DURATION_MS);
 
       const encode = (data: string) => new TextEncoder().encode(data);
 
@@ -125,14 +135,14 @@ export async function GET(req: NextRequest) {
               bySubmission.get(key)!.push(ev);
             }
 
-            for (const [submissionId, events] of bySubmission) {
+            for (const [submissionId, events] of Array.from(bySubmission)) {
               if (closed) return;
               const latest = events[events.length - 1];
               const payload = JSON.stringify({
                 type: 'keystroke_batch',
                 submission_id: submissionId,
                 session_id: latest.session_id,
-                char_count: events.reduce((sum: number, e: { char_count: number }) => sum + e.char_count, 0),
+                char_count: events.reduce((sum: number, e) => sum + (e.char_count as number), 0),
                 event_count: events.length,
                 occurred_at: latest.occurred_at,
               });
@@ -159,6 +169,8 @@ export async function GET(req: NextRequest) {
 
         if (!closed) {
           setTimeout(poll, POLL_INTERVAL_MS);
+        } else {
+          clearTimeout(timeoutId);
         }
       };
 

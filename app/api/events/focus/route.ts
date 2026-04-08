@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     RETURNING id
   `;
 
-  const id: string = inserted[0].id;
+  const id: string = inserted[0].id as string;
 
   // Get the current submission for this session to evaluate flags
   const submissionRows = await sql`
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
   `;
 
   if (submissionRows.length > 0) {
-    const submissionId: string = submissionRows[0].id;
+    const submissionId: string = submissionRows[0].id as string;
     const { is_flagged, flag_reasons } = await evaluateFlags(submissionId);
 
     await sql`
