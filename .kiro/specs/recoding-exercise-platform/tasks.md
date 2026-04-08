@@ -129,10 +129,10 @@ Incremental implementation of the Next.js 14 App Router platform. Each task buil
     - Test session not yet open → 423, session expired → auto-close, duplicate final submit → 409
     - _Requirements: 4.1, 4.4_
 
-- [-] 9. Checkpoint — Ensure all anti-cheat and session timing tests pass, ask the user if questions arise.
+- [x] 9. Checkpoint — Ensure all anti-cheat and session timing tests pass, ask the user if questions arise.
 
 - [ ] 10. SSE live monitoring stream
-  - [~] 10.1 Implement SSE endpoint
+  - [-] 10.1 Implement SSE endpoint
     - Create `GET /api/events/stream` Route Handler that returns a `ReadableStream` with `Content-Type: text/event-stream`
     - On each anti-cheat event write (paste, focus, keystroke batch), push a server-sent event to connected instructor clients (use a simple in-memory event emitter or poll the DB every few seconds)
     - _Requirements: (supports Requirement 10 instructor monitoring)_
