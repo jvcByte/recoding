@@ -10,12 +10,14 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "migrate": "tsx scripts/migrate.ts",
-    "cleanup": "tsx scripts/cleanup-autosave.ts"
+    "cleanup": "tsx scripts/cleanup-autosave.ts",
+    "reset-password": "tsx scripts/reset-password.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.9.0",
     "@types/pg": "^8.20.0",
     "bcryptjs": "^2.4.3",
+    "csv-stringify": "^6.7.0",
     "next": "14.2.5",
     "next-auth": "^4.24.7",
     "pg": "^8.20.0",

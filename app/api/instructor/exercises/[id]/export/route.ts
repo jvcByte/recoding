@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { sql } from '@/lib/db';
+import { stringify } from 'csv-stringify/sync';
 
 export async function GET(
   req: NextRequest,
@@ -45,24 +46,16 @@ export async function GET(
       'review_note',
     ];
 
-    const escape = (val: unknown): string => {
-      if (val === null || val === undefined) return '';
-      const str = Array.isArray(val) ? val.join(';') : String(val);
-      // Wrap in quotes if contains comma, quote, or newline
-      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-        return `"${str.replace(/"/g, '""')}"`;
-      }
-      return str;
-    };
+    const csvData = rows.map((row) =>
+      headers.map((h) => {
+        const val = row[h];
+        return Array.isArray(val) ? val.join(';') : val ?? '';
+      })
+    );
 
-    const csvLines = [
-      headers.join(','),
-      ...rows.map((row) =>
-        headers.map((h) => escape(row[h])).join(',')
-      ),
-    ];
+    const csv = stringify([headers, ...csvData]);
 
-    return new NextResponse(csvLines.join('\n'), {
+    return new NextResponse(csv, {
       status: 200,
       headers: {
         'Content-Type': 'text/csv',

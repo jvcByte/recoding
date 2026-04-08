@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // docs/ directory is bundled with the deployment for fs reads in Route Handlers
+  // Bundle the docs/ directory so fs reads work in serverless/edge deployments.
+  // Without this, the files are not included in the deployment output.
+  outputFileTracingIncludes: {
+    '/api/exercises/*/question/*': ['./docs/**/*'],
+  },
   async headers() {
     return [
       {
