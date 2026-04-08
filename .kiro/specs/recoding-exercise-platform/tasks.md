@@ -137,12 +137,12 @@ Incremental implementation of the Next.js 14 App Router platform. Each task buil
     - On each anti-cheat event write (paste, focus, keystroke batch), push a server-sent event to connected instructor clients (use a simple in-memory event emitter or poll the DB every few seconds)
     - _Requirements: (supports Requirement 10 instructor monitoring)_
 
-  - [-] 10.2 Build LiveMonitor Client Component
+  - [x] 10.2 Build LiveMonitor Client Component
     - Create `LiveMonitor` in `app/instructor/` that opens an `EventSource` to `/api/events/stream` and renders incoming anti-cheat events in real time
     - _Requirements: 10.1, 10.3_
 
 - [ ] 11. Instructor management and submission review
-  - [~] 11.1 Implement instructor exercise management API
+  - [-] 11.1 Implement instructor exercise management API
     - Create `GET /api/instructor/exercises` and `PUT /api/instructor/exercises/[id]` route handlers for enabling/disabling exercises, updating session timing, and managing participant assignments
     - _Requirements: 11.1, 11.2, 11.3_
 
