@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { sql } from '@/lib/db';
 import LiveMonitor from './LiveMonitor';
+import LogoutButton from '@/app/components/LogoutButton';
 
 interface Exercise {
   id: string;
@@ -31,7 +32,10 @@ export default async function InstructorDashboard() {
 
   return (
     <div style={{ fontFamily: 'sans-serif', maxWidth: 900, margin: '0 auto', padding: 24 }}>
-      <h1 style={{ fontSize: 24, marginBottom: 4 }}>Instructor Dashboard</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+        <h1 style={{ fontSize: 24, margin: 0 }}>Instructor Dashboard</h1>
+        <LogoutButton />
+      </div>
       <p style={{ color: '#64748b', marginBottom: 24 }}>
         Manage exercises, review submissions, and monitor live sessions.
       </p>

@@ -3,6 +3,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { redirect } from 'next/navigation';
 import { sql } from '@/lib/db';
 import Link from 'next/link';
+import LogoutButton from '@/app/components/LogoutButton';
 
 interface Exercise {
   id: string;
@@ -39,7 +40,10 @@ export default async function ExerciseCataloguePage() {
 
   return (
     <main style={{ maxWidth: 800, margin: '0 auto', padding: '2rem' }}>
-      <h1>Exercise Catalogue</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+        <h1 style={{ margin: 0 }}>Exercise Catalogue</h1>
+        <LogoutButton />
+      </div>
       <p>Welcome, {session.user.name ?? session.user.email}</p>
 
       {fetchError && (
