@@ -132,12 +132,12 @@ Incremental implementation of the Next.js 14 App Router platform. Each task buil
 - [x] 9. Checkpoint — Ensure all anti-cheat and session timing tests pass, ask the user if questions arise.
 
 - [ ] 10. SSE live monitoring stream
-  - [-] 10.1 Implement SSE endpoint
+  - [x] 10.1 Implement SSE endpoint
     - Create `GET /api/events/stream` Route Handler that returns a `ReadableStream` with `Content-Type: text/event-stream`
     - On each anti-cheat event write (paste, focus, keystroke batch), push a server-sent event to connected instructor clients (use a simple in-memory event emitter or poll the DB every few seconds)
     - _Requirements: (supports Requirement 10 instructor monitoring)_
 
-  - [~] 10.2 Build LiveMonitor Client Component
+  - [-] 10.2 Build LiveMonitor Client Component
     - Create `LiveMonitor` in `app/instructor/` that opens an `EventSource` to `/api/events/stream` and renders incoming anti-cheat events in real time
     - _Requirements: 10.1, 10.3_
 
