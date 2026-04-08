@@ -231,11 +231,52 @@ export default function SessionView({ exerciseId }: { exerciseId: string }) {
   }
 
   if (!sessionState) {
+    if (sessionClosed) {
+      return (
+        <div style={{ padding: '2rem' }}>
+          <div
+            style={{
+              background: '#f44336',
+              color: '#fff',
+              padding: '0.75rem 1rem',
+              borderRadius: 6,
+              fontWeight: 'bold',
+              fontSize: '1rem',
+              textAlign: 'center',
+              marginBottom: '1rem',
+            }}
+          >
+            Session closed — your responses have been saved
+          </div>
+          <a href="/participant">← Back to catalogue</a>
+        </div>
+      );
+    }
     return <div style={{ padding: '2rem' }}>No session data.</div>;
   }
 
+  // When closed, clamp remaining time to 0
+  const displayRemainingSeconds = sessionClosed ? 0 : sessionState.remaining_seconds;
+
   return (
     <main style={{ maxWidth: 900, margin: '0 auto', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      {/* Session-closed banner */}
+      {sessionClosed && (
+        <div
+          style={{
+            background: '#f44336',
+            color: '#fff',
+            padding: '0.75rem 1rem',
+            borderRadius: 6,
+            fontWeight: 'bold',
+            fontSize: '1rem',
+            textAlign: 'center',
+          }}
+        >
+          Session closed — your responses have been saved
+        </div>
+      )}
+
       {/* Header row: progress + timer */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <ProgressBar
@@ -244,7 +285,7 @@ export default function SessionView({ exerciseId }: { exerciseId: string }) {
           questionStatuses={sessionState.question_statuses}
         />
         <TimerDisplay
-          remainingSeconds={sessionState.remaining_seconds}
+          remainingSeconds={displayRemainingSeconds}
           warningLowTime={sessionState.warning_low_time}
         />
       </div>

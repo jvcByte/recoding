@@ -173,11 +173,11 @@ Incremental implementation of the Next.js 14 App Router platform. Each task buil
 - [x] 12. Checkpoint — Ensure all instructor and SSE tests pass, ask the user if questions arise.
 
 - [ ] 13. Integration wiring and login page
-  - [-] 13.1 Create login page
+  - [x] 13.1 Create login page
     - Create `app/login/page.tsx` with a credential form that calls NextAuth `signIn`; display error messages on failure; redirect to role-appropriate dashboard on success
     - _Requirements: 1.1, 1.2, 1.3_
 
-  - [~] 13.2 Wire session expiry into the UI
+  - [-] 13.2 Wire session expiry into the UI
     - In `SessionView`, poll `GET /api/exercises/[id]/session` every 10 s; when session is closed or time runs out, disable `ResponseEditor` and show a session-closed banner
     - _Requirements: 4.3, 4.4_
 
