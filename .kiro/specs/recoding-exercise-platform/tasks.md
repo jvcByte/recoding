@@ -170,10 +170,10 @@ Incremental implementation of the Next.js 14 App Router platform. Each task buil
     - Create `SubmissionList` Server Component with flag indicators for the exercise submissions view
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 11.1, 11.2, 11.4_
 
-- [~] 12. Checkpoint — Ensure all instructor and SSE tests pass, ask the user if questions arise.
+- [x] 12. Checkpoint — Ensure all instructor and SSE tests pass, ask the user if questions arise.
 
 - [ ] 13. Integration wiring and login page
-  - [~] 13.1 Create login page
+  - [-] 13.1 Create login page
     - Create `app/login/page.tsx` with a credential form that calls NextAuth `signIn`; display error messages on failure; redirect to role-appropriate dashboard on success
     - _Requirements: 1.1, 1.2, 1.3_
 
