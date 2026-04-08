@@ -9,7 +9,8 @@
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "migrate": "tsx scripts/migrate.ts"
+    "migrate": "tsx scripts/migrate.ts",
+    "cleanup": "tsx scripts/cleanup-autosave.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.9.0",

@@ -5,9 +5,9 @@ export interface FlagResult {
   flag_reasons: string[];
 }
 
-const FOCUS_LOSS_THRESHOLD = 3;
-const MIN_EDIT_EVENTS = 10;
-const MIN_RESPONSE_LENGTH_FOR_EDIT_CHECK = 200;
+const FOCUS_LOSS_THRESHOLD = parseInt(process.env.FLAG_FOCUS_LOSS_THRESHOLD ?? '3', 10);
+const MIN_EDIT_EVENTS = parseInt(process.env.FLAG_MIN_EDIT_EVENTS ?? '10', 10);
+const MIN_RESPONSE_LENGTH_FOR_EDIT_CHECK = parseInt(process.env.FLAG_MIN_RESPONSE_LENGTH ?? '200', 10);
 
 /**
  * Evaluates anti-cheat signals for a given submission and returns

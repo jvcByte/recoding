@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { sql } from '@/lib/db';
+import { audit } from '@/lib/audit';
 
 export async function PUT(
   req: NextRequest,
@@ -33,6 +34,7 @@ export async function PUT(
     await sql`
       UPDATE exercises SET enabled = ${body.enabled} WHERE id = ${exerciseId}
     `;
+    await audit(session.user.id, body.enabled ? 'exercise.enabled' : 'exercise.disabled', 'exercise', exerciseId);
   }
 
   // Replace assignment list if provided
@@ -42,7 +44,6 @@ export async function PUT(
     `;
 
     if (body.assign_user_ids.length > 0) {
-      // Insert each assignment individually to avoid complex unnest typing
       for (const userId of body.assign_user_ids) {
         await sql`
           INSERT INTO exercise_assignments (exercise_id, user_id)
@@ -51,6 +52,9 @@ export async function PUT(
         `;
       }
     }
+    await audit(session.user.id, 'exercise.assignments_updated', 'exercise', exerciseId, {
+      user_ids: body.assign_user_ids,
+    });
   }
 
   // Update timing on unstarted sessions if any timing field is provided
