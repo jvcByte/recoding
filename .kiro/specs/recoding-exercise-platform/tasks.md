@@ -181,7 +181,7 @@ Incremental implementation of the Next.js 14 App Router platform. Each task buil
     - In `SessionView`, poll `GET /api/exercises/[id]/session` every 10 s; when session is closed or time runs out, disable `ResponseEditor` and show a session-closed banner
     - _Requirements: 4.3, 4.4_
 
-  - [-] 13.3 Wire question advance and locking into SessionView
+  - [x] 13.3 Wire question advance and locking into SessionView
     - Connect the "Next Question" button to `POST /api/exercises/[id]/session/advance`; on success, lock the previous `ResponseEditor` and render the next `QuestionDisplay`
     - _Requirements: 9.3, 9.4_
 
@@ -190,7 +190,7 @@ Incremental implementation of the Next.js 14 App Router platform. Each task buil
     - Test: SSE stream delivers paste and focus events to instructor in real time
     - _Requirements: 1.2, 5.2, 6.4, 7.3, 10.2_
 
-- [~] 14. Final checkpoint — Ensure all tests pass, ask the user if questions arise.
+- [x] 14. Final checkpoint — Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
 
