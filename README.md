@@ -20,13 +20,17 @@ npm install
 
 ### 2. Set environment variables
 
-Create a `.env.local` file:
+Copy the example file and fill in your values:
 
-```env
-DATABASE_URL=postgres://...        # Neon connection string
-NEXTAUTH_SECRET=your-secret-here   # Random secret for JWT signing
-NEXTAUTH_URL=http://localhost:3000
+```bash
+cp .env.example .env.local
 ```
+
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | Neon PostgreSQL connection string (from your Neon dashboard) |
+| `NEXTAUTH_SECRET` | Random secret for JWT signing — generate with `openssl rand -base64 32` |
+| `NEXTAUTH_URL` | Base URL of the app, e.g. `http://localhost:3000` |
 
 ### 3. Set up the database
 
