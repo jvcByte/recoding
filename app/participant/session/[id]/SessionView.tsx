@@ -153,6 +153,10 @@ export default function SessionView({ exerciseId }: { exerciseId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [sessionClosed, setSessionClosed] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [advancing, setAdvancing] = useState(false);
+  const [advanceError, setAdvanceError] = useState<string | null>(null);
+  const [advancing, setAdvancing] = useState(false);
+  const [advanceError, setAdvanceError] = useState<string | null>(null);
 
   const fetchSession = useCallback(async () => {
     try {
@@ -192,6 +196,24 @@ export default function SessionView({ exerciseId }: { exerciseId: string }) {
       setQuestion(null);
     }
   }, [exerciseId]);
+
+  const handleAdvance = useCallback(async () => {
+    setAdvancing(true);
+    setAdvanceError(null);
+    try {
+      const res = await fetch(`/api/exercises/${exerciseId}/session/advance`, { method: 'POST' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setAdvanceError((data as { error?: string }).error ?? 'Failed to advance question.');
+        return;
+      }
+      await fetchSession();
+    } catch {
+      setAdvanceError('Network error advancing question.');
+    } finally {
+      setAdvancing(false);
+    }
+  }, [exerciseId, fetchSession]);
 
   // Initial load
   useEffect(() => {
@@ -300,15 +322,27 @@ export default function SessionView({ exerciseId }: { exerciseId: string }) {
         isClosed={sessionClosed}
       />
 
-      {/* Next Question button placeholder (wired up in task 13.3) */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button
-          disabled
-          style={{ padding: '0.5rem 1.5rem', fontSize: '1rem', borderRadius: 4, cursor: 'not-allowed', opacity: 0.5 }}
-        >
-          Next Question →
-        </button>
-      </div>
+      {/* Next Question button */}
+      {sessionState.current_question_index + 1 < sessionState.question_count && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
+          {advanceError && (
+            <span style={{ fontSize: '0.85rem', color: '#f44336' }}>{advanceError}</span>
+          )}
+          <button
+            onClick={handleAdvance}
+            disabled={sessionClosed || advancing}
+            style={{
+              padding: '0.5rem 1.5rem',
+              fontSize: '1rem',
+              borderRadius: 4,
+              cursor: sessionClosed || advancing ? 'not-allowed' : 'pointer',
+              opacity: sessionClosed || advancing ? 0.5 : 1,
+            }}
+          >
+            {advancing ? 'Advancing…' : 'Next Question →'}
+          </button>
+        </div>
+      )}
     </main>
   );
 }
