@@ -50,11 +50,17 @@ export default async function ExercisePage({ params }: Props) {
         `
       : [];
 
+  // Fetch all participants so the instructor can assign them
+  const allParticipants = await sql`
+    SELECT id, username FROM users WHERE role = 'participant' ORDER BY username
+  `;
+
   return (
     <ExerciseManager
       exercise={exercise}
       sessions={sessionRows as { id: string; start_time: string | null; end_time: string | null; duration_limit: string | null; started_at: string | null }[]}
       assignedUsers={assignedUsers as { id: string; username: string }[]}
+      allParticipants={allParticipants as { id: string; username: string }[]}
     />
   );
 }

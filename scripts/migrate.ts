@@ -1,14 +1,17 @@
 /**
  * Database migration runner.
- * Usage: npx tsx scripts/migrate.ts
  *
- * Applies any pending SQL files from /migrations in filename order.
+ * Usage:
+ *   npx tsx scripts/migrate.ts          — apply pending migrations
+ *   npx tsx scripts/migrate.ts fresh    — drop all tables and re-run from scratch
+ *
+ * Applies SQL files from /migrations in filename order.
  * Tracks applied migrations in a `schema_migrations` table.
  */
 
 import fs from 'fs';
 import path from 'path';
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
 
 // Load .env.local so the script works without pre-exporting env vars
 const envPath = path.join(process.cwd(), '.env.local');
@@ -23,11 +26,33 @@ const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) throw new Error('DATABASE_URL is not set');
 
 const pool = new Pool({ connectionString: DATABASE_URL });
+const isFresh = process.argv[2] === 'fresh';
+
+async function dropAllTables(client: PoolClient) {
+  console.log('Dropping all tables...');
+  // Drop in dependency order using CASCADE
+  await client.query(`
+    DO $$ DECLARE
+      r RECORD;
+    BEGIN
+      FOR r IN (
+        SELECT tablename FROM pg_tables WHERE schemaname = 'public'
+      ) LOOP
+        EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
+      END LOOP;
+    END $$;
+  `);
+  console.log('All tables dropped.');
+}
 
 async function run() {
   const client = await pool.connect();
 
   try {
+    if (isFresh) {
+      await dropAllTables(client);
+    }
+
     // Ensure tracking table exists
     await client.query(`
       CREATE TABLE IF NOT EXISTS schema_migrations (

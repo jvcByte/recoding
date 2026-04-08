@@ -24,10 +24,12 @@ interface Props {
   exercise: Exercise;
   sessions: Session[];
   assignedUsers: { id: string; username: string }[];
+  allParticipants: { id: string; username: string }[];
 }
 
-export default function ExerciseManager({ exercise: initial, sessions, assignedUsers }: Props) {
+export default function ExerciseManager({ exercise: initial, sessions, assignedUsers: initialAssigned, allParticipants }: Props) {
   const [exercise, setExercise] = useState(initial);
+  const [assignedUsers, setAssignedUsers] = useState(initialAssigned);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -69,6 +71,33 @@ export default function ExerciseManager({ exercise: initial, sessions, assignedU
       end_time: endTime || null,
       duration_limit: durationLimit || null,
     });
+  }
+
+  async function toggleAssignment(userId: string, currentlyAssigned: boolean) {
+    const newIds = currentlyAssigned
+      ? assignedUsers.filter((u) => u.id !== userId).map((u) => u.id)
+      : [...assignedUsers.map((u) => u.id), userId];
+
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await fetch(`/api/instructor/exercises/${exercise.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assign_user_ids: newIds }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const updated = await res.json();
+      setExercise(updated);
+      const updatedIds: string[] = updated.assigned_user_ids ?? [];
+      setAssignedUsers(allParticipants.filter((p) => updatedIds.includes(p.id)));
+      setSuccess('Saved.');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Unknown error');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -163,15 +192,34 @@ export default function ExerciseManager({ exercise: initial, sessions, assignedU
       {/* Assigned Participants */}
       <section style={sectionStyle}>
         <h2 style={sectionTitle}>Assigned Participants ({assignedUsers.length})</h2>
-        {assignedUsers.length === 0 ? (
-          <p style={{ color: '#94a3b8', fontSize: 13 }}>No participants assigned.</p>
+        {allParticipants.length === 0 ? (
+          <p style={{ color: '#94a3b8', fontSize: 13 }}>No participant accounts exist yet.</p>
         ) : (
           <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-            {assignedUsers.map((u) => (
-              <li key={u.id} style={{ padding: '4px 0', fontSize: 14, borderBottom: '1px solid #f1f5f9' }}>
-                {u.username}
-              </li>
-            ))}
+            {allParticipants.map((p) => {
+              const assigned = assignedUsers.some((u) => u.id === p.id);
+              return (
+                <li key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f1f5f9', fontSize: 14 }}>
+                  <span style={{ color: assigned ? '#0f172a' : '#94a3b8' }}>{p.username}</span>
+                  <button
+                    onClick={() => toggleAssignment(p.id, assigned)}
+                    disabled={saving}
+                    style={{
+                      padding: '3px 10px',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      border: 'none',
+                      borderRadius: 4,
+                      cursor: 'pointer',
+                      background: assigned ? '#fee2e2' : '#dcfce7',
+                      color: assigned ? '#991b1b' : '#166534',
+                    }}
+                  >
+                    {assigned ? 'Remove' : 'Assign'}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

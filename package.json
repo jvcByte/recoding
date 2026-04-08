@@ -10,6 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "migrate": "tsx scripts/migrate.ts",
+    "migrate:fresh": "tsx scripts/migrate.ts fresh && tsx scripts/seed.ts",
+    "seed": "tsx scripts/seed.ts",
     "cleanup": "tsx scripts/cleanup-autosave.ts",
     "reset-password": "tsx scripts/reset-password.ts"
   },

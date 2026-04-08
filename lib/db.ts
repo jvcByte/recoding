@@ -1,4 +1,17 @@
 import { Pool } from 'pg';
+import fs from 'fs';
+import path from 'path';
+
+// Load .env.local when running outside of Next.js (e.g. scripts)
+if (!process.env.DATABASE_URL) {
+  const envPath = path.join(process.cwd(), '.env.local');
+  if (fs.existsSync(envPath)) {
+    for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
+      const match = line.match(/^\s*([^#=\s][^=]*?)\s*=\s*(.*)\s*$/);
+      if (match) process.env[match[1]] = match[2].replace(/^['"]|['"]$/g, '');
+    }
+  }
+}
 
 if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL environment variable is not set');
