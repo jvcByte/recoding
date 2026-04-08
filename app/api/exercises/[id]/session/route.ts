@@ -1,0 +1,137 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { sql } from '@/lib/db';
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const userId = session.user.id;
+  const exerciseId = params.id;
+
+  // Look up or create the session for this exercise + user
+  let rows = await sql`
+    SELECT s.id, s.start_time, s.end_time, s.duration_limit,
+           s.started_at, s.closed_at, s.current_question_index,
+           e.question_count
+    FROM sessions s
+    INNER JOIN exercises e ON e.id = s.exercise_id
+    WHERE s.exercise_id = ${exerciseId}
+      AND s.user_id = ${userId}
+    LIMIT 1
+  `;
+
+  if (rows.length === 0) {
+    // Create a new session
+    const created = await sql`
+      INSERT INTO sessions (exercise_id, user_id, started_at, current_question_index)
+      VALUES (${exerciseId}, ${userId}, now(), 0)
+      RETURNING id, start_time, end_time, duration_limit,
+                started_at, closed_at, current_question_index
+    `;
+
+    // Fetch question_count separately
+    const exerciseRows = await sql`
+      SELECT question_count FROM exercises WHERE id = ${exerciseId}
+    `;
+
+    rows = created.map((r) => ({
+      ...r,
+      question_count: exerciseRows[0]?.question_count ?? 0,
+    }));
+  }
+
+  const row = rows[0];
+
+  // 423 if start_time is set and now() < start_time
+  if (row.start_time && new Date() < new Date(row.start_time)) {
+    return NextResponse.json(
+      { error: 'Session not yet open', opens_at: row.start_time },
+      { status: 423 }
+    );
+  }
+
+  // 410 if session is closed
+  if (row.closed_at) {
+    return NextResponse.json({ error: 'Session closed' }, { status: 410 });
+  }
+
+  // Calculate remaining_seconds
+  let remainingSeconds: number | null = null;
+
+  if (row.duration_limit && row.started_at) {
+    // duration_limit is a Postgres INTERVAL — Neon returns it as a string like "01:30:00"
+    // or as seconds depending on driver. Parse it to seconds.
+    const durationSeconds = parseIntervalToSeconds(row.duration_limit);
+    const startedAt = new Date(row.started_at).getTime();
+    const expiresAt = startedAt + durationSeconds * 1000;
+    const fromDuration = Math.floor((expiresAt - Date.now()) / 1000);
+    remainingSeconds = fromDuration;
+  }
+
+  if (row.end_time) {
+    const fromEndTime = Math.floor(
+      (new Date(row.end_time).getTime() - Date.now()) / 1000
+    );
+    remainingSeconds =
+      remainingSeconds === null
+        ? fromEndTime
+        : Math.min(remainingSeconds, fromEndTime);
+  }
+
+  const warningLowTime =
+    remainingSeconds !== null && remainingSeconds < 300;
+
+  // Query per-question submission statuses
+  const submissions = await sql`
+    SELECT question_index, is_final,
+           (response_text IS NOT NULL AND response_text <> '') AS has_draft
+    FROM submissions
+    WHERE session_id = ${row.id}
+  `;
+
+  const questionStatuses = submissions.map((s) => ({
+    question_index: s.question_index,
+    has_draft: Boolean(s.has_draft),
+    is_final: Boolean(s.is_final),
+  }));
+
+  return NextResponse.json({
+    session_id: row.id,
+    current_question_index: row.current_question_index,
+    question_count: row.question_count,
+    remaining_seconds: remainingSeconds,
+    warning_low_time: warningLowTime,
+    question_statuses: questionStatuses,
+  });
+}
+
+/**
+ * Parse a Postgres INTERVAL value to total seconds.
+ * Neon may return it as a string "HH:MM:SS", "HH:MM:SS.mmm",
+ * or as a number (seconds) depending on the driver version.
+ */
+function parseIntervalToSeconds(interval: unknown): number {
+  if (typeof interval === 'number') return interval;
+  if (typeof interval === 'string') {
+    // Handle "HH:MM:SS" or "HH:MM:SS.mmm"
+    const parts = interval.split(':');
+    if (parts.length === 3) {
+      const hours = parseInt(parts[0], 10);
+      const minutes = parseInt(parts[1], 10);
+      const seconds = parseFloat(parts[2]);
+      return hours * 3600 + minutes * 60 + seconds;
+    }
+    // Fallback: try parsing as a plain number string
+    const n = parseFloat(interval);
+    if (!isNaN(n)) return n;
+  }
+  return 0;
+}
