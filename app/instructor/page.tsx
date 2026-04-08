@@ -1,7 +1,9 @@
 import Link from 'next/link';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { sql } from '@/lib/db';
 import LiveMonitor from './LiveMonitor';
-import LogoutButton from '@/app/components/LogoutButton';
+import Navbar from '@/app/components/Navbar';
 
 interface Exercise {
   id: string;
@@ -15,10 +17,7 @@ interface Exercise {
 async function getExercises(): Promise<Exercise[]> {
   const rows = await sql`
     SELECT e.id, e.slug, e.title, e.enabled, e.question_count,
-           COALESCE(
-             json_agg(ea.user_id) FILTER (WHERE ea.user_id IS NOT NULL),
-             '[]'
-           ) AS assigned_user_ids
+           COALESCE(json_agg(ea.user_id) FILTER (WHERE ea.user_id IS NOT NULL), '[]') AS assigned_user_ids
     FROM exercises e
     LEFT JOIN exercise_assignments ea ON ea.exercise_id = e.id
     GROUP BY e.id, e.slug, e.title, e.enabled, e.question_count
@@ -28,92 +27,104 @@ async function getExercises(): Promise<Exercise[]> {
 }
 
 export default async function InstructorDashboard() {
+  const session = await getServerSession(authOptions);
   const exercises = await getExercises();
 
+  const enabled = exercises.filter((e) => e.enabled).length;
+  const totalAssigned = exercises.reduce((s, e) => s + e.assigned_user_ids.length, 0);
+
   return (
-    <div style={{ fontFamily: 'sans-serif', maxWidth: 900, margin: '0 auto', padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-        <h1 style={{ fontSize: 24, margin: 0 }}>Instructor Dashboard</h1>
-        <LogoutButton />
-      </div>
-      <p style={{ color: '#64748b', marginBottom: 24 }}>
-        Manage exercises, review submissions, and monitor live sessions.
-      </p>
+    <div className="page">
+      <Navbar
+        username={session?.user?.name ?? undefined}
+        role="instructor"
+        links={[{ href: '/instructor', label: 'Dashboard' }]}
+      />
+      <main className="main">
+        <div className="container">
+          <div className="page-header">
+            <h1 className="page-title">Instructor Dashboard</h1>
+            <p className="page-sub">Manage exercises, review submissions, and monitor live sessions.</p>
+          </div>
 
-      {/* Exercise list */}
-      <section style={{ marginBottom: 40 }}>
-        <h2 style={{ fontSize: 18, marginBottom: 12 }}>Exercises</h2>
-        {exercises.length === 0 ? (
-          <p style={{ color: '#94a3b8' }}>No exercises found.</p>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-            <thead>
-              <tr style={{ background: '#f1f5f9' }}>
-                <th style={th}>Title</th>
-                <th style={th}>Status</th>
-                <th style={th}>Questions</th>
-                <th style={th}>Assigned</th>
-                <th style={th}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {exercises.map((ex) => (
-                <tr key={ex.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                  <td style={td}>{ex.title}</td>
-                  <td style={td}>
-                    <span style={{
-                      display: 'inline-block',
-                      padding: '2px 8px',
-                      borderRadius: 4,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      background: ex.enabled ? '#dcfce7' : '#fee2e2',
-                      color: ex.enabled ? '#166534' : '#991b1b',
-                    }}>
-                      {ex.enabled ? 'Enabled' : 'Disabled'}
-                    </span>
-                  </td>
-                  <td style={td}>{ex.question_count}</td>
-                  <td style={td}>{ex.assigned_user_ids.length} participant(s)</td>
-                  <td style={td}>
-                    <Link
-                      href={`/instructor/exercises/${ex.id}`}
-                      style={{ color: '#2563eb', textDecoration: 'none', marginRight: 12 }}
-                    >
-                      Manage
-                    </Link>
-                    <Link
-                      href={`/instructor/exercises/${ex.id}/submissions`}
-                      style={{ color: '#7c3aed', textDecoration: 'none' }}
-                    >
-                      Submissions
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+          {/* Stats */}
+          <div className="stats-grid">
+            <div className="stat-tile">
+              <span className="label">Total Exercises</span>
+              <span className="value">{exercises.length}</span>
+            </div>
+            <div className="stat-tile">
+              <span className="label">Enabled</span>
+              <span className="value" style={{ color: 'var(--green)' }}>{enabled}</span>
+            </div>
+            <div className="stat-tile">
+              <span className="label">Disabled</span>
+              <span className="value" style={{ color: 'var(--red)' }}>{exercises.length - enabled}</span>
+            </div>
+            <div className="stat-tile">
+              <span className="label">Assignments</span>
+              <span className="value" style={{ color: 'var(--accent)' }}>{totalAssigned}</span>
+            </div>
+          </div>
 
-      {/* Live monitor */}
-      <section>
-        <h2 style={{ fontSize: 18, marginBottom: 12 }}>Live Monitor</h2>
-        <LiveMonitor />
-      </section>
+          {/* Exercises table */}
+          <div className="card" style={{ marginBottom: '1.5rem' }}>
+            <div className="card-header">
+              <span className="card-title">Exercises</span>
+            </div>
+            {exercises.length === 0 ? (
+              <p style={{ color: 'var(--text3)', fontSize: 13 }}>No exercises found.</p>
+            ) : (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Title</th>
+                      <th>Status</th>
+                      <th>Questions</th>
+                      <th>Assigned</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {exercises.map((ex) => (
+                      <tr key={ex.id}>
+                        <td style={{ fontWeight: 600 }}>{ex.title}</td>
+                        <td>
+                          <span className={`badge ${ex.enabled ? 'badge-green' : 'badge-red'}`}>
+                            {ex.enabled ? 'Enabled' : 'Disabled'}
+                          </span>
+                        </td>
+                        <td style={{ color: 'var(--text2)' }}>{ex.question_count}</td>
+                        <td style={{ color: 'var(--text2)' }}>{ex.assigned_user_ids.length}</td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <Link href={`/instructor/exercises/${ex.id}`} className="btn btn-secondary btn-sm">
+                              Manage
+                            </Link>
+                            <Link href={`/instructor/exercises/${ex.id}/submissions`} className="btn btn-ghost btn-sm">
+                              Submissions
+                            </Link>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Live monitor */}
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title">Live Monitor</span>
+              <span className="badge badge-green" style={{ fontSize: 10 }}>● LIVE</span>
+            </div>
+            <LiveMonitor />
+          </div>
+        </div>
+      </main>
     </div>
   );
 }
-
-const th: React.CSSProperties = {
-  textAlign: 'left',
-  padding: '8px 12px',
-  fontWeight: 600,
-  fontSize: 13,
-  color: '#475569',
-};
-
-const td: React.CSSProperties = {
-  padding: '10px 12px',
-  verticalAlign: 'middle',
-};

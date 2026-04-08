@@ -18,22 +18,14 @@ function LoginForm() {
     setError('');
     setLoading(true);
 
-    const result = await signIn('credentials', {
-      username,
-      password,
-      redirect: false,
-    });
-
-    console.log(result);
-
+    const result = await signIn('credentials', { username, password, redirect: false });
     setLoading(false);
 
     if (!result || result.error) {
-      setError('Error: That\'s all we know :)');
+      setError('Invalid username or password.');
       return;
     }
 
-    // Fetch session to determine role for redirect
     const sessionRes = await fetch('/api/auth/session');
     const session = await sessionRes.json();
     const role = session?.user?.role;
@@ -48,51 +40,52 @@ function LoginForm() {
   }
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f5f5f5' }}>
-      <form
-        onSubmit={handleSubmit}
-        style={{ background: '#fff', padding: '2rem', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', width: '320px' }}
-      >
-        <h1 style={{ marginBottom: '1.5rem', fontSize: '1.25rem', fontWeight: 600 }}>Sign in</h1>
+    <div className="login-page">
+      <div className="login-card">
+        <div className="login-logo">
+          <div className="login-logo-icon">⬡</div>
+          <div className="login-logo-title">Recoding Platform</div>
+          <div className="login-logo-sub">Sign in to continue</div>
+        </div>
 
-        {error && (
-          <p style={{ color: '#c0392b', marginBottom: '1rem', fontSize: '0.875rem' }}>
-            {error}
-          </p>
-        )}
+        {error && <div className="alert alert-error" style={{ marginBottom: '1.25rem' }}>{error}</div>}
 
-        <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>
-          Username
-        </label>
-        <input
-          type="text"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          required
-          autoComplete="username"
-          style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }}
-        />
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div className="form-group">
+            <label className="form-label">Username</label>
+            <input
+              className="form-input"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              autoComplete="username"
+              autoFocus
+            />
+          </div>
 
-        <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>
-          Password
-        </label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          autoComplete="current-password"
-          style={{ width: '100%', padding: '0.5rem', marginBottom: '1.5rem', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }}
-        />
+          <div className="form-group">
+            <label className="form-label">Password</label>
+            <input
+              className="form-input"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+            />
+          </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          style={{ width: '100%', padding: '0.625rem', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, fontSize: '0.875rem' }}
-        >
-          {loading ? 'Signing in…' : 'Sign in'}
-        </button>
-      </form>
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn btn-primary btn-lg"
+            style={{ marginTop: '0.5rem', justifyContent: 'center' }}
+          >
+            {loading ? 'Signing in…' : 'Sign in →'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

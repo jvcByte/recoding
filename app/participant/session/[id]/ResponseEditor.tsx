@@ -69,6 +69,22 @@ export default function ResponseEditor({
   // Focus tracking
   const focusLostAtRef = useRef<string | null>(null);
 
+  // ── Reset state when question changes ────────────────────────────────────
+
+  useEffect(() => {
+    setText('');
+    setLastSavedText('');
+    setSaveStatus('idle');
+    setIsFinal(false);
+    setFinalConfirmed(false);
+    setRestored(false);
+    setShowPasteBanner(false);
+    submissionIdRef.current = null;
+    pendingPasteEventsRef.current = [];
+    editBufferRef.current = [];
+    prevLengthRef.current = 0;
+  }, [questionIndex]);
+
   // ── Restore on mount ──────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -76,7 +92,7 @@ export default function ResponseEditor({
 
     async function restore() {
       try {
-        const res = await fetch(`/api/submissions/${sessionId}/restore`);
+        const res = await fetch(`/api/submissions/${sessionId}/restore?q=${questionIndex}`);
         if (!res.ok) return;
         const data: RestoreResponse = await res.json();
         if (cancelled) return;
@@ -368,115 +384,39 @@ export default function ResponseEditor({
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-      {/* Status banners */}
-      {isClosed && !isFinal && (
-        <div style={bannerStyle('#f44336')}>Session closed</div>
-      )}
-      {isFinal && (
-        <div style={bannerStyle('#4caf50')}>
-          Final submission — no further edits allowed
-        </div>
-      )}
-      {showPasteBanner && (
-        <div style={bannerStyle('#ff9800')}>
-          ⚠️ Paste detected — this activity is being recorded
-        </div>
-      )}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+      {isClosed && !isFinal && <div className="alert alert-error">Session closed</div>}
+      {isFinal && <div className="alert alert-success">✓ Final submission — no further edits allowed</div>}
+      {showPasteBanner && <div className="alert alert-warning">⚠️ Paste detected — this activity is being recorded</div>}
 
-      {/* Label row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-        <label htmlFor="response" style={{ fontWeight: 'bold' }}>
-          Your Response
-        </label>
-
-        {hasUnsaved && !isDisabled && (
-          <span style={badgeStyle('#ff9800')}>Draft — not yet submitted</span>
-        )}
-
-        {saveStatus === 'saving' && (
-          <span style={{ fontSize: '0.85rem', color: '#555' }}>Saving…</span>
-        )}
-        {saveStatus === 'saved' && (
-          <span style={{ fontSize: '0.85rem', color: '#4caf50' }}>Saved</span>
-        )}
-        {saveStatus === 'failed' && (
-          <span style={{ fontSize: '0.85rem', color: '#f44336' }}>Save failed</span>
-        )}
+        <label htmlFor="response" style={{ fontWeight: 700, fontSize: 14 }}>Your Response</label>
+        {hasUnsaved && !isDisabled && <span className="badge badge-orange">Unsaved draft</span>}
+        {saveStatus === 'saving' && <span style={{ fontSize: 12, color: 'var(--text3)' }}>Saving…</span>}
+        {saveStatus === 'saved' && <span style={{ fontSize: 12, color: 'var(--green)' }}>✓ Saved</span>}
+        {saveStatus === 'failed' && <span style={{ fontSize: 12, color: 'var(--red)' }}>Save failed</span>}
       </div>
 
-      {/* Textarea */}
       <textarea
         id="response"
-        rows={12}
+        className="form-textarea"
+        rows={14}
         disabled={isDisabled || !restored}
         value={text}
-        onChange={(e) => {
-          setText(e.target.value);
-          setSaveStatus('idle');
-        }}
+        onChange={(e) => { setText(e.target.value); setSaveStatus('idle'); }}
         onInput={handleInput}
         onPaste={handlePaste}
         placeholder={restored ? 'Write your answer here…' : 'Loading…'}
-        style={{
-          width: '100%',
-          padding: '0.75rem',
-          fontFamily: 'inherit',
-          fontSize: '1rem',
-          borderRadius: 4,
-          border: '1px solid #ccc',
-          boxSizing: 'border-box',
-          resize: 'vertical',
-          opacity: isDisabled ? 0.7 : 1,
-          cursor: isDisabled ? 'not-allowed' : 'text',
-        }}
+        style={{ opacity: isDisabled ? 0.6 : 1, cursor: isDisabled ? 'not-allowed' : 'text' }}
       />
 
-      {/* Submit Final Answer button */}
       {!isDisabled && (
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <button
-            onClick={handleFinalSubmit}
-            disabled={saveStatus === 'saving'}
-            style={{
-              padding: '0.5rem 1.25rem',
-              fontSize: '1rem',
-              borderRadius: 4,
-              background: '#1976d2',
-              color: '#fff',
-              border: 'none',
-              cursor: saveStatus === 'saving' ? 'not-allowed' : 'pointer',
-              opacity: saveStatus === 'saving' ? 0.7 : 1,
-            }}
-          >
-            {saveStatus === 'saving' ? 'Saving…' : 'Submit Final Answer'}
+          <button onClick={handleFinalSubmit} disabled={saveStatus === 'saving'} className="btn btn-primary">
+            {saveStatus === 'saving' ? 'Saving…' : '✓ Submit Final Answer'}
           </button>
         </div>
       )}
     </div>
   );
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function bannerStyle(color: string): React.CSSProperties {
-  return {
-    background: color,
-    color: '#fff',
-    padding: '0.5rem 0.75rem',
-    borderRadius: 4,
-    fontWeight: 'bold',
-    fontSize: '0.9rem',
-  };
-}
-
-function badgeStyle(color: string): React.CSSProperties {
-  return {
-    background: color,
-    color: '#fff',
-    padding: '0.15rem 0.5rem',
-    borderRadius: 12,
-    fontSize: '0.78rem',
-    fontWeight: 'bold',
-  };
 }

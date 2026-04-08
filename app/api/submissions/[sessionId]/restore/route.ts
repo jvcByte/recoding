@@ -4,7 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { sql } from '@/lib/db';
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { sessionId: string } }
 ) {
   const session = await getServerSession(authOptions);
@@ -16,7 +16,7 @@ export async function GET(
   const userId = session.user.id;
   const { sessionId } = params;
 
-  // Verify session belongs to current user and get current question index
+  // Verify session belongs to current user
   const sessionRows = await sql`
     SELECT id, current_question_index
     FROM sessions
@@ -30,7 +30,16 @@ export async function GET(
   }
 
   const dbSession = sessionRows[0];
-  const questionIndex: number = dbSession.current_question_index;
+  const currentIndex: number = dbSession.current_question_index;
+
+  // Use ?q= param if provided (for navigating back), otherwise use current index
+  const qParam = req.nextUrl.searchParams.get('q');
+  const questionIndex = qParam !== null ? parseInt(qParam, 10) : currentIndex;
+
+  // Prevent fetching questions beyond current progress
+  if (questionIndex > currentIndex) {
+    return NextResponse.json({ error: 'Question not yet available' }, { status: 403 });
+  }
 
   // Look up the submission for the current question
   const submissionRows = await sql`

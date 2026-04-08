@@ -3,7 +3,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { redirect } from 'next/navigation';
 import { sql } from '@/lib/db';
 import Link from 'next/link';
-import LogoutButton from '@/app/components/LogoutButton';
+import Navbar from '@/app/components/Navbar';
 
 interface Exercise {
   id: string;
@@ -14,13 +14,9 @@ interface Exercise {
 
 export default async function ExerciseCataloguePage() {
   const session = await getServerSession(authOptions);
-
-  if (!session?.user?.id) {
-    redirect('/login');
-  }
+  if (!session?.user?.id) redirect('/login');
 
   const userId = session.user.id;
-
   let exercises: Exercise[] = [];
   let fetchError = false;
 
@@ -29,8 +25,7 @@ export default async function ExerciseCataloguePage() {
       SELECT e.id, e.slug, e.title, e.question_count
       FROM exercises e
       INNER JOIN exercise_assignments ea ON ea.exercise_id = e.id
-      WHERE ea.user_id = ${userId}
-        AND e.enabled = true
+      WHERE ea.user_id = ${userId} AND e.enabled = true
       ORDER BY e.title
     `;
     exercises = rows as Exercise[];
@@ -39,62 +34,46 @@ export default async function ExerciseCataloguePage() {
   }
 
   return (
-    <main style={{ maxWidth: 800, margin: '0 auto', padding: '2rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-        <h1 style={{ margin: 0 }}>Exercise Catalogue</h1>
-        <LogoutButton />
-      </div>
-      <p>Welcome, {session.user.name ?? session.user.email}</p>
+    <div className="page">
+      <Navbar username={session.user.name ?? undefined} role="participant" />
+      <main className="main">
+        <div className="container">
+          <div className="page-header">
+            <h1 className="page-title">My Exercises</h1>
+            <p className="page-sub">Welcome back, {session.user.name ?? 'participant'}. Select an exercise to begin.</p>
+          </div>
 
-      {fetchError && (
-        <p style={{ color: 'red' }}>Failed to load exercises. Please try again.</p>
-      )}
+          {fetchError && (
+            <div className="alert alert-error" style={{ marginBottom: '1rem' }}>
+              Failed to load exercises. Please refresh the page.
+            </div>
+          )}
 
-      {!fetchError && exercises.length === 0 && (
-        <p>No exercises assigned. Please contact your instructor.</p>
-      )}
+          {!fetchError && exercises.length === 0 && (
+            <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>📭</div>
+              <p style={{ color: 'var(--text2)', fontWeight: 600, marginBottom: '0.25rem' }}>No exercises assigned</p>
+              <p style={{ color: 'var(--text3)', fontSize: 13 }}>Contact your instructor to get access.</p>
+            </div>
+          )}
 
-      {exercises.length > 0 && (
-        <ul
-          style={{
-            listStyle: 'none',
-            padding: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1rem',
-          }}
-        >
-          {exercises.map((exercise) => (
-            <li
-              key={exercise.id}
-              style={{
-                border: '1px solid #ccc',
-                borderRadius: 8,
-                padding: '1rem',
-              }}
-            >
-              <h2 style={{ margin: '0 0 0.5rem' }}>{exercise.title}</h2>
-              <p style={{ margin: '0 0 0.75rem', color: '#555' }}>
-                {exercise.question_count} question
-                {exercise.question_count !== 1 ? 's' : ''}
-              </p>
-              <Link
-                href={`/participant/session/${exercise.id}`}
-                style={{
-                  display: 'inline-block',
-                  padding: '0.5rem 1rem',
-                  background: '#0070f3',
-                  color: '#fff',
-                  borderRadius: 4,
-                  textDecoration: 'none',
-                }}
-              >
-                Start Exercise
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </main>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {exercises.map((exercise) => (
+              <div key={exercise.id} className="exercise-card">
+                <div className="exercise-card-info">
+                  <div className="exercise-card-title">{exercise.title}</div>
+                  <div className="exercise-card-meta">
+                    {exercise.question_count} question{exercise.question_count !== 1 ? 's' : ''}
+                  </div>
+                </div>
+                <Link href={`/participant/session/${exercise.id}`} className="btn btn-primary">
+                  Start →
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      </main>
+    </div>
   );
 }

@@ -71,7 +71,7 @@ export default function TypingReplay({ editEvents, finalText }: Props) {
           disabled={total === 0}
           style={{
             padding: '6px 16px',
-            background: playing ? '#dc2626' : '#2563eb',
+            background: playing ? 'var(--red)' : 'var(--accent)',
             color: '#fff',
             border: 'none',
             borderRadius: 6,
@@ -82,7 +82,7 @@ export default function TypingReplay({ editEvents, finalText }: Props) {
         >
           {playing ? '⏸ Pause' : step >= total && total > 0 ? '↺ Replay' : '▶ Play'}
         </button>
-        <span style={{ color: '#64748b' }}>
+        <span style={{ color: 'var(--text3)' }}>
           Step {step} / {total}
         </span>
         <input
@@ -93,11 +93,11 @@ export default function TypingReplay({ editEvents, finalText }: Props) {
           onChange={(e) => { setPlaying(false); setStep(Number(e.target.value)); }}
           style={{ flex: 1 }}
         />
-        <span style={{ color: '#64748b' }}>{progress}%</span>
+        <span style={{ color: 'var(--text3)' }}>{progress}%</span>
       </div>
 
       {/* Stats */}
-      <div style={{ display: 'flex', gap: 16, marginBottom: 12, fontSize: 12, color: '#475569' }}>
+      <div style={{ display: 'flex', gap: 16, marginBottom: 12, fontSize: 12, color: 'var(--text3)' }}>
         <span>Insertions: <strong style={{ color: '#16a34a' }}>+{insertCount} chars</strong></span>
         <span>Deletions: <strong style={{ color: '#dc2626' }}>−{deleteCount} chars</strong></span>
       </div>
@@ -129,18 +129,19 @@ export default function TypingReplay({ editEvents, finalText }: Props) {
       {/* Final text preview at end */}
       {step === total && total > 0 && (
         <div style={{ marginTop: 12 }}>
-          <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>Final response text:</div>
+          <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 4 }}>Final response text:</div>
           <div style={{
-            background: '#f8fafc',
-            border: '1px solid #e2e8f0',
+            background: 'var(--bg3)',
+            border: '1px solid var(--border)',
             borderRadius: 6,
             padding: 12,
             whiteSpace: 'pre-wrap',
             fontSize: 13,
+            color: 'var(--text)',
             maxHeight: 200,
             overflowY: 'auto',
           }}>
-            {finalText || <span style={{ color: '#94a3b8' }}>(empty)</span>}
+            {finalText || <span style={{ color: 'var(--text3)' }}>(empty)</span>}
           </div>
         </div>
       )}
