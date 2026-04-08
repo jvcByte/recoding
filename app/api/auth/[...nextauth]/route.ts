@@ -1,10 +1,16 @@
 import NextAuth, { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
+import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
+import { isRateLimited, resetRateLimit } from '@/lib/rateLimit';
 
 export const authOptions: NextAuthOptions = {
-  secret: process.env.NEXTAUTH_SECRET ?? 'fallback-dev-secret-change-in-prod',
+  secret: (() => {
+    if (!process.env.NEXTAUTH_SECRET) throw new Error('NEXTAUTH_SECRET is not set');
+    return process.env.NEXTAUTH_SECRET;
+  })(),
+
   providers: [
     CredentialsProvider({
       name: 'Credentials',
@@ -29,7 +35,7 @@ export const authOptions: NextAuthOptions = {
 
         const passwordMatch = await bcrypt.compare(
           credentials.password,
-          user.password_hash
+          user.password_hash as string
         );
         if (!passwordMatch) return null;
 
@@ -65,5 +71,39 @@ export const authOptions: NextAuthOptions = {
   },
 };
 
-const handler = NextAuth(authOptions);
-export { handler as GET, handler as POST };
+const nextAuthHandler = NextAuth(authOptions);
+
+export const GET = nextAuthHandler;
+
+export async function POST(req: NextRequest, ctx: unknown) {
+  // Only rate-limit the credentials sign-in action
+  const url = req.nextUrl;
+  const isSignIn =
+    url.pathname.endsWith('/callback/credentials') ||
+    url.searchParams.get('nextauth')?.includes('callback') === true;
+
+  if (isSignIn) {
+    const ip =
+      req.headers.get('x-forwarded-for')?.split(',')[0].trim() ??
+      req.headers.get('x-real-ip') ??
+      'unknown';
+
+    if (isRateLimited(ip)) {
+      return NextResponse.json(
+        { error: 'Too many attempts. Please try again later.' },
+        { status: 429 }
+      );
+    }
+
+    const res = await (nextAuthHandler as (req: NextRequest, ctx: unknown) => Promise<NextResponse>)(req, ctx);
+
+    // On success (redirect to callbackUrl), clear the counter
+    if (res.status === 200 || res.status === 302) {
+      resetRateLimit(ip);
+    }
+
+    return res;
+  }
+
+  return (nextAuthHandler as (req: NextRequest, ctx: unknown) => Promise<NextResponse>)(req, ctx);
+}
