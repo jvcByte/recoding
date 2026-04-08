@@ -142,11 +142,11 @@ Incremental implementation of the Next.js 14 App Router platform. Each task buil
     - _Requirements: 10.1, 10.3_
 
 - [ ] 11. Instructor management and submission review
-  - [-] 11.1 Implement instructor exercise management API
+  - [x] 11.1 Implement instructor exercise management API
     - Create `GET /api/instructor/exercises` and `PUT /api/instructor/exercises/[id]` route handlers for enabling/disabling exercises, updating session timing, and managing participant assignments
     - _Requirements: 11.1, 11.2, 11.3_
 
-  - [~] 11.2 Implement submission review API
+  - [-] 11.2 Implement submission review API
     - Create `GET /api/instructor/exercises/[id]/submissions` returning all submissions with flag indicators
     - Create `GET /api/instructor/submissions/[id]` returning full detail: response text, autosave history, paste events, focus events, edit events
     - Create `PUT /api/instructor/submissions/[id]/review` for adding a review note
