@@ -87,22 +87,22 @@ Incremental implementation of the Next.js 14 App Router platform. Each task buil
     - Test session start, expiry (duration limit reached → auto-save + close editor), and manual close
     - _Requirements: 4.1, 4.2, 4.3_
 
-- [-] 6. Checkpoint — Ensure all submission and session tests pass, ask the user if questions arise.
+- [x] 6. Checkpoint — Ensure all submission and session tests pass, ask the user if questions arise.
 
 - [ ] 7. Anti-cheat event capture
-  - [~] 7.1 Implement anti-cheat API routes
+  - [x] 7.1 Implement anti-cheat API routes
     - Create `POST /api/events/paste` — inserts into `paste_events` with `char_count`, `occurred_at`, `submission_id`
     - Create `POST /api/events/focus` — inserts into `focus_events` with `lost_at`, `regained_at`, `duration_ms`, `session_id`; after insert, calls `evaluateFlags` to check focus-loss threshold
     - Create `POST /api/events/keystrokes` — batch-inserts into `edit_events`; stores `event_type`, `position`, `char_count`, `occurred_at` only (no raw characters)
     - _Requirements: 6.1, 6.2, 7.2, 8.1, 8.2_
 
-  - [~] 7.2 Wire anti-cheat hooks into ResponseEditor
+  - [x] 7.2 Wire anti-cheat hooks into ResponseEditor
     - Add `onPaste` handler that calls `POST /api/events/paste` and shows the paste-detected warning banner
     - Add `document.addEventListener('visibilitychange')` and `window.addEventListener('blur')` handlers that call `POST /api/events/focus`
     - Add `onInput` handler that records insert/delete edit events locally and batch-uploads to `POST /api/events/keystrokes` on autosave
     - _Requirements: 6.1, 6.3, 7.1, 8.1_
 
-  - [~] 7.3 Implement auto-flagging in `lib/flagging.ts`
+  - [x] 7.3 Implement auto-flagging in `lib/flagging.ts`
     - After each autosave and on session close, call `evaluateFlags(submissionId)` and update `submissions.is_flagged` and `flag_reasons`
     - Flag if paste events > 0, focus-loss events > threshold, or edit events < 10 for response > 200 chars
     - _Requirements: 7.4, 8.4_
@@ -116,7 +116,7 @@ Incremental implementation of the Next.js 14 App Router platform. Each task buil
     - **Validates: Requirements 6.1, 6.2, 7.2, 7.4, 8.1, 8.4**
 
 - [ ] 8. Timed session management
-  - [~] 8.1 Implement session timing API and advance-question logic
+  - [x] 8.1 Implement session timing API and advance-question logic
     - Extend `GET /api/exercises/[id]/session` to enforce `start_time`, `end_time`, and `duration_limit`; return 423 if not yet open, 410 if closed
     - Add `POST /api/exercises/[id]/session/advance` route that increments `current_question_index`, locks the previous question's submission, and returns the new index
     - _Requirements: 4.1, 4.3, 4.4, 9.3, 9.4_
@@ -129,7 +129,7 @@ Incremental implementation of the Next.js 14 App Router platform. Each task buil
     - Test session not yet open → 423, session expired → auto-close, duplicate final submit → 409
     - _Requirements: 4.1, 4.4_
 
-- [~] 9. Checkpoint — Ensure all anti-cheat and session timing tests pass, ask the user if questions arise.
+- [-] 9. Checkpoint — Ensure all anti-cheat and session timing tests pass, ask the user if questions arise.
 
 - [ ] 10. SSE live monitoring stream
   - [~] 10.1 Implement SSE endpoint

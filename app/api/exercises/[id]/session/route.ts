@@ -63,6 +63,31 @@ export async function GET(
     return NextResponse.json({ error: 'Session closed' }, { status: 410 });
   }
 
+  const now = new Date();
+
+  // Auto-close if end_time has passed
+  if (row.end_time && now > new Date(row.end_time)) {
+    await sql`
+      UPDATE sessions SET closed_at = now()
+      WHERE id = ${row.id} AND closed_at IS NULL
+    `;
+    return NextResponse.json({ error: 'Session closed' }, { status: 410 });
+  }
+
+  // Auto-close if duration_limit has been exceeded
+  if (row.duration_limit && row.started_at) {
+    const durationSeconds = parseIntervalToSeconds(row.duration_limit);
+    const startedAt = new Date(row.started_at).getTime();
+    const expiresAt = startedAt + durationSeconds * 1000;
+    if (now.getTime() > expiresAt) {
+      await sql`
+        UPDATE sessions SET closed_at = now()
+        WHERE id = ${row.id} AND closed_at IS NULL
+      `;
+      return NextResponse.json({ error: 'Session closed' }, { status: 410 });
+    }
+  }
+
   // Calculate remaining_seconds
   let remainingSeconds: number | null = null;
 

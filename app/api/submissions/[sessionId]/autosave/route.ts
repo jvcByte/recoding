@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { sql } from '@/lib/db';
+import { evaluateFlags } from '@/lib/flagging';
 
 export async function POST(
   req: NextRequest,
@@ -77,5 +78,14 @@ export async function POST(
     VALUES (${submissionId}, ${response_text}, now())
   `;
 
-  return NextResponse.json({ submission_id: submissionId }, { status: 200 });
+  // Evaluate anti-cheat flags and persist results
+  const { is_flagged, flag_reasons } = await evaluateFlags(submissionId);
+  await sql`
+    UPDATE submissions
+    SET is_flagged   = ${is_flagged},
+        flag_reasons = ${flag_reasons}
+    WHERE id = ${submissionId}
+  `;
+
+  return NextResponse.json({ submission_id: submissionId, is_flagged }, { status: 200 });
 }
