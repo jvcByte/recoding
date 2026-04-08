@@ -24,10 +24,12 @@ function LoginForm() {
       redirect: false,
     });
 
+    console.log(result);
+
     setLoading(false);
 
     if (!result || result.error) {
-      setError('Invalid username or password');
+      setError('Error: That\'s all we know :)');
       return;
     }
 

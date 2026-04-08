@@ -155,8 +155,6 @@ export default function SessionView({ exerciseId }: { exerciseId: string }) {
   const [loading, setLoading] = useState(true);
   const [advancing, setAdvancing] = useState(false);
   const [advanceError, setAdvanceError] = useState<string | null>(null);
-  const [advancing, setAdvancing] = useState(false);
-  const [advanceError, setAdvanceError] = useState<string | null>(null);
 
   const fetchSession = useCallback(async () => {
     try {

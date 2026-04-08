@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import { sql } from '@/lib/db';
 
 export const authOptions: NextAuthOptions = {
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET ?? 'fallback-dev-secret-change-in-prod',
   providers: [
     CredentialsProvider({
       name: 'Credentials',
