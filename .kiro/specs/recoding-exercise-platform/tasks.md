@@ -146,7 +146,7 @@ Incremental implementation of the Next.js 14 App Router platform. Each task buil
     - Create `GET /api/instructor/exercises` and `PUT /api/instructor/exercises/[id]` route handlers for enabling/disabling exercises, updating session timing, and managing participant assignments
     - _Requirements: 11.1, 11.2, 11.3_
 
-  - [-] 11.2 Implement submission review API
+  - [x] 11.2 Implement submission review API
     - Create `GET /api/instructor/exercises/[id]/submissions` returning all submissions with flag indicators
     - Create `GET /api/instructor/submissions/[id]` returning full detail: response text, autosave history, paste events, focus events, edit events
     - Create `PUT /api/instructor/submissions/[id]/review` for adding a review note
@@ -163,7 +163,7 @@ Incremental implementation of the Next.js 14 App Router platform. Each task buil
     - Test enable/disable exercise, assign participant, add review note, export CSV and JSON structure
     - _Requirements: 11.1, 11.2, 10.4, 10.5_
 
-  - [~] 11.5 Build instructor UI pages
+  - [x] 11.5 Build instructor UI pages
     - Create `app/instructor/page.tsx` (Server Component) with `InstructorDashboard` and `LiveMonitor`
     - Create `app/instructor/exercises/[id]/page.tsx` with `ExerciseManager` (enable/disable, timing, assignments, preview)
     - Create `app/instructor/submissions/[id]/page.tsx` with `SubmissionDetail`, `TypingReplay`, and `ExportButton`
