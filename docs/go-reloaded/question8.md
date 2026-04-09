@@ -1,11 +1,5 @@
-### Question 8
+### Question 9
 
-You process `(hex)` conversion and it works for most inputs. Then your auditor runs:
+Your program passes all your own tests. During the audit, your auditor feeds it a file where a `(low, 5)` modifier appears near the beginning of a sentence — and there are fewer than 5 words before it.
 
-```
-1E (hex) files were added
-```
-
-Your program crashes with a parsing error.
-
-**What went wrong? Walk through what `strconv.ParseInt("1E", 16, 64)` actually requires — and what your code likely missed about case sensitivity in hex input. How do you fix it, and what other hex edge cases should you now test for?**
+**What does your program do in this case — crash, silently process fewer words, or something else? Walk through what the correct behavior should be according to the spec, and how your implementation handles (or should handle) the boundary condition of `n > available words`.**

@@ -16,10 +16,12 @@
     "reset-password": "tsx scripts/reset-password.ts"
   },
   "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
     "@neondatabase/serverless": "^0.9.0",
     "@types/pg": "^8.20.0",
     "bcryptjs": "^2.4.3",
     "csv-stringify": "^6.7.0",
+    "gray-matter": "^4.0.3",
     "next": "14.2.5",
     "next-auth": "^4.24.7",
     "pg": "^8.20.0",

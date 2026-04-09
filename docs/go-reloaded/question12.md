@@ -1,8 +1,7 @@
-### Question 11
+### Question 13
 
-You have 8 transformation rules to implement. Two approaches are on the table:
+Your auditor is another student. The spec says: *"We advise you to create your own tests for yourself and for when you will correct your auditees."*
 
-- **Approach A:** One large function that scans the text and handles every rule in a single pass.
-- **Approach B:** A pipeline — separate functions for each rule, applied in sequence.
+You need to write tests that are genuinely useful — not just the four sample inputs from the spec.
 
-**Which did you choose — and what are the real trade-offs? Think specifically about: what happens when two rules interact (e.g., `(up)` fires on a word that also needs punctuation cleanup), how easy it is to add a 9th rule later, and how you'd write unit tests for each approach.**
+**Design a test suite for go-reloaded. What categories of input would you test beyond the given samples? List at least 6 specific test cases — including at least two that target interactions between rules (e.g., a word that needs both `(cap)` and punctuation cleanup) — and explain what each one is designed to catch.**

@@ -1,5 +1,11 @@
-### Question 9
+### Question 10
 
-Your program passes all your own tests. During the audit, your auditor feeds it a file where a `(low, 5)` modifier appears near the beginning of a sentence — and there are fewer than 5 words before it.
+You process punctuation spacing as a final pass after all other transformations. Your auditor runs:
 
-**What does your program do in this case — crash, silently process fewer words, or something else? Walk through what the correct behavior should be according to the spec, and how your implementation handles (or should handle) the boundary condition of `n > available words`.**
+```
+Ready, set, go (up) !
+```
+
+Your output is `Ready, set, GO !` — the space before `!` wasn't removed.
+
+**Why did the final punctuation pass miss this? What does this reveal about the order in which your transformations run — and what would you need to change in your pipeline so that punctuation cleanup always fires after case transformations, not before?**

@@ -1,5 +1,5 @@
-### Question 12
+### Question 14
 
-The spec says to use only standard Go packages. You need to do string manipulation, file I/O, number base conversion, and pattern matching.
+The spec guarantees that when `(hex)` or `(bin)` is used, the word before it will always be a valid number in that base. But in a real production tool, you can't make that guarantee.
 
-**Map out which standard Go packages you used for which rules — and for at least one rule, explain why you chose that package's approach over writing the logic manually. What does the standard library give you that a hand-rolled solution might get wrong?**
+**Without changing the spec's required behavior for valid inputs, how would you design your error handling for invalid inputs? What should the program output, exit with, or log — and how does Go's idiomatic error handling pattern (`if err != nil`) shape the way you structure this decision across your codebase?**

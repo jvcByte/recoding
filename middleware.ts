@@ -80,5 +80,6 @@ export const config = {
     '/api/exercises/:path*',
     '/api/submissions/:path*',
     '/api/events/:path*',
+    '/api/run-code',
   ],
 };

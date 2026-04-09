@@ -1,9 +1,13 @@
 import { readFileSync, readdirSync } from 'fs';
 import path from 'path';
+import matter from 'gray-matter';
 
 export interface Question {
   index: number;
-  text: string; // raw markdown
+  text: string;       // markdown body (frontmatter stripped)
+  type: 'written' | 'code';
+  language: string;   // e.g. 'go' — only meaningful when type === 'code'
+  starter: string;    // starter code template
 }
 
 export interface ExerciseContent {
@@ -12,32 +16,32 @@ export interface ExerciseContent {
   questions: Question[];
 }
 
-// Slugs that live under docs/prompt-piscine/ rather than docs/ directly
 const PROMPT_PISCINE_SLUGS = new Set([
-  'prompt-basics',
-  'prompt-patterns',
-  'ai-ethics',
-  'debug-control',
-  'ethical-ai',
-  'reasoning-flow',
-  'role-prompt',
-  'tool-prompts',
+  'prompt-basics', 'prompt-patterns', 'ai-ethics', 'debug-control',
+  'ethical-ai', 'reasoning-flow', 'role-prompt', 'tool-prompts',
 ]);
+
+// Exercises whose questions are in-browser coding tasks
+const CODE_EXERCISE_SLUGS = new Set(['ascii-art', 'ascii-art-web']);
 
 function resolveExerciseDir(slug: string): string {
   const base = path.join(process.cwd(), 'docs');
-  if (PROMPT_PISCINE_SLUGS.has(slug)) {
-    return path.join(base, 'prompt-piscine', slug);
-  }
+  if (PROMPT_PISCINE_SLUGS.has(slug)) return path.join(base, 'prompt-piscine', slug);
   return path.join(base, slug);
 }
 
-/**
- * Loads all question*.md files from docs/{slug}/ (or docs/prompt-piscine/{slug}/)
- * sorted by filename, and returns them as an ExerciseContent.
- */
+const GO_STARTER = `package main
+
+import "fmt"
+
+func main() {
+\tfmt.Println("Hello, World!")
+}
+`;
+
 export function loadExercise(slug: string): ExerciseContent {
   const dir = resolveExerciseDir(slug);
+  const isCodeExercise = CODE_EXERCISE_SLUGS.has(slug);
 
   let files: string[];
   try {
@@ -47,8 +51,12 @@ export function loadExercise(slug: string): ExerciseContent {
   }
 
   const questionFiles = files
-    .filter((f) => f.startsWith('question') && f.endsWith('.md'))
-    .sort();
+    .filter((f) => f.match(/^question\d+\.md$/))
+    .sort((a, b) => {
+      const na = parseInt(a.replace('question', '').replace('.md', ''), 10);
+      const nb = parseInt(b.replace('question', '').replace('.md', ''), 10);
+      return na - nb;
+    });
 
   if (questionFiles.length === 0) {
     throw new Error(`No question files found for slug: ${slug}`);
@@ -56,14 +64,21 @@ export function loadExercise(slug: string): ExerciseContent {
 
   const questions: Question[] = questionFiles.map((filename, i) => {
     const filePath = path.join(dir, filename);
-    const text = readFileSync(filePath, 'utf-8');
-    return { index: i, text };
+    const raw = readFileSync(filePath, 'utf-8');
+    const { data, content } = matter(raw);
+
+    // Frontmatter can override type/language/starter per question
+    const type: 'written' | 'code' =
+      data.type ?? (isCodeExercise ? 'code' : 'written');
+    const language: string = data.language ?? (isCodeExercise ? 'go' : 'text');
+    const starter: string = data.starter ?? (type === 'code' ? GO_STARTER : '');
+
+    return { index: i, text: content.trim(), type, language, starter };
   });
 
-  // Derive a human-readable title from the slug
   const title = slug
     .split('-')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ');
 
   return { slug, title, questions };

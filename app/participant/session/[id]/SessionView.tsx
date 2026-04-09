@@ -3,13 +3,20 @@
 import { useEffect, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import ResponseEditor from './ResponseEditor';
+import CodeEditor from './CodeEditor';
 
 interface QuestionStatus { question_index: number; has_draft: boolean; is_final: boolean; }
 interface SessionState {
   session_id: string; current_question_index: number; question_count: number;
   remaining_seconds: number | null; warning_low_time: boolean; question_statuses: QuestionStatus[];
 }
-interface Question { index: number; text: string; }
+interface Question {
+  index: number;
+  text: string;
+  type: 'written' | 'code';
+  language: string;
+  starter: string;
+}
 
 function TimerDisplay({ remainingSeconds, warningLowTime }: { remainingSeconds: number | null; warningLowTime: boolean }) {
   if (remainingSeconds === null) return <div className="timer">∞</div>;
@@ -166,12 +173,22 @@ export default function SessionView({ exerciseId }: { exerciseId: string }) {
         }
       </div>
 
-      {/* Editor */}
-      <ResponseEditor
-        sessionId={sessionState.session_id}
-        questionIndex={activeIndex}
-        isClosed={sessionClosed}
-      />
+      {/* Editor — code or written depending on question type */}
+      {question?.type === 'code' ? (
+        <CodeEditor
+          sessionId={sessionState.session_id}
+          questionIndex={activeIndex}
+          language={question.language}
+          starter={question.starter}
+          isClosed={sessionClosed}
+        />
+      ) : (
+        <ResponseEditor
+          sessionId={sessionState.session_id}
+          questionIndex={activeIndex}
+          isClosed={sessionClosed}
+        />
+      )}
 
       {/* Navigation */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

@@ -65,5 +65,11 @@ export async function GET(
     return NextResponse.json({ error: 'Question not found' }, { status: 404 });
   }
 
-  return NextResponse.json({ index: question.index, text: question.text });
+  return NextResponse.json({
+    index: question.index,
+    text: question.text,
+    type: question.type,
+    language: question.language,
+    starter: question.starter,
+  });
 }

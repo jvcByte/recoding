@@ -1,11 +1,8 @@
-### Question 10
+### Question 11
 
-You process punctuation spacing as a final pass after all other transformations. Your auditor runs:
+You have 8 transformation rules to implement. Two approaches are on the table:
 
-```
-Ready, set, go (up) !
-```
+- **Approach A:** One large function that scans the text and handles every rule in a single pass.
+- **Approach B:** A pipeline — separate functions for each rule, applied in sequence.
 
-Your output is `Ready, set, GO !` — the space before `!` wasn't removed.
-
-**Why did the final punctuation pass miss this? What does this reveal about the order in which your transformations run — and what would you need to change in your pipeline so that punctuation cleanup always fires after case transformations, not before?**
+**Which did you choose — and what are the real trade-offs? Think specifically about: what happens when two rules interact (e.g., `(up)` fires on a word that also needs punctuation cleanup), how easy it is to add a 9th rule later, and how you'd write unit tests for each approach.**

@@ -1,11 +1,11 @@
-### Question 7
+### Question 8
 
-You implement the single-quote rule: `' awesome '` → `'awesome'`. It works on the sample input. Then your auditor tests it with:
+You process `(hex)` conversion and it works for most inputs. Then your auditor runs:
 
 ```
-"As Elton John said: ' I am the most well-known homosexual in the world '"
+1E (hex) files were added
 ```
 
-Your output incorrectly puts the closing `'` after `world'` with a space before it.
+Your program crashes with a parsing error.
 
-**Trace the bug. What assumption did your implementation make about single quotes that broke on multi-word input? How do you fix it — and how do you test that the fix works for both the one-word and multi-word cases?**
+**What went wrong? Walk through what `strconv.ParseInt("1E", 16, 64)` actually requires — and what your code likely missed about case sensitivity in hex input. How do you fix it, and what other hex edge cases should you now test for?**
