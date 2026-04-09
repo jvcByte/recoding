@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 interface Exercise {
   id: string; slug: string; title: string; enabled: boolean;
   question_count: number; assigned_user_ids: string[];
+  start_time: string | null; end_time: string | null; duration_limit: string | null;
 }
 interface Session {
   id: string; start_time: string | null; end_time: string | null;
@@ -26,9 +27,15 @@ export default function ExerciseManager({ exercise: initial, sessions, assignedU
   const [saving, setSaving] = useState(false);
 
   const unstartedSession = sessions.find((s) => !s.started_at);
-  const [startTime, setStartTime] = useState(unstartedSession?.start_time?.slice(0, 16) ?? '');
-  const [endTime, setEndTime] = useState(unstartedSession?.end_time?.slice(0, 16) ?? '');
-  const [durationLimit, setDurationLimit] = useState(unstartedSession?.duration_limit ?? '');
+  const [startTime, setStartTime] = useState(
+    (initial.start_time ?? unstartedSession?.start_time)?.slice(0, 16) ?? ''
+  );
+  const [endTime, setEndTime] = useState(
+    (initial.end_time ?? unstartedSession?.end_time)?.slice(0, 16) ?? ''
+  );
+  const [durationLimit, setDurationLimit] = useState(
+    initial.duration_limit ?? unstartedSession?.duration_limit ?? ''
+  );
 
   async function patch(body: Record<string, unknown>) {
     setSaving(true);
@@ -42,7 +49,7 @@ export default function ExerciseManager({ exercise: initial, sessions, assignedU
       setExercise(updated);
       toast.success('Saved');
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : 'Unknown error');
+      toast.error(e instanceof Error ? e.name : 'Unknown error');
     } finally {
       setSaving(false);
     }
@@ -100,7 +107,7 @@ export default function ExerciseManager({ exercise: initial, sessions, assignedU
           <span className="card-title">Session Timing</span>
         </div>
         <p style={{ fontSize: 13, color: 'var(--text3)', marginBottom: '1rem' }}>
-          Applies to participants who have not yet started.
+          Applies to all open (non-closed) sessions for this exercise.
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
           <div className="form-group">

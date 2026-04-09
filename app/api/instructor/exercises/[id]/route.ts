@@ -57,30 +57,34 @@ export async function PUT(
     });
   }
 
-  // Update timing on unstarted sessions if any timing field is provided
+  // Update timing — save to exercises table AND update all open sessions
   const hasTimingUpdate =
     'start_time' in body || 'end_time' in body || 'duration_limit' in body;
 
   if (hasTimingUpdate) {
+    // Persist timing on the exercise so new sessions inherit it
+    await sql`
+      UPDATE exercises
+      SET
+        start_time     = COALESCE(${('start_time'     in body ? body.start_time     : undefined) ?? null}, start_time),
+        end_time       = COALESCE(${('end_time'       in body ? body.end_time       : undefined) ?? null}, end_time),
+        duration_limit = COALESCE(${('duration_limit' in body ? body.duration_limit : undefined) ?? null}, duration_limit)
+      WHERE id = ${exerciseId}
+    `;
+
+    // Also push to all existing open sessions
     if ('start_time' in body) {
-      await sql`
-        UPDATE sessions
-        SET start_time = ${body.start_time ?? null}
-        WHERE exercise_id = ${exerciseId} AND started_at IS NULL
-      `;
+      await sql`UPDATE sessions SET start_time = ${body.start_time ?? null} WHERE exercise_id = ${exerciseId} AND closed_at IS NULL`;
     }
     if ('end_time' in body) {
-      await sql`
-        UPDATE sessions
-        SET end_time = ${body.end_time ?? null}
-        WHERE exercise_id = ${exerciseId} AND started_at IS NULL
-      `;
+      await sql`UPDATE sessions SET end_time = ${body.end_time ?? null} WHERE exercise_id = ${exerciseId} AND closed_at IS NULL`;
     }
     if ('duration_limit' in body) {
       await sql`
         UPDATE sessions
-        SET duration_limit = ${body.duration_limit ?? null}
-        WHERE exercise_id = ${exerciseId} AND started_at IS NULL
+        SET duration_limit = ${body.duration_limit ?? null},
+            started_at = CASE WHEN ${body.duration_limit ?? null} IS NOT NULL THEN now() ELSE started_at END
+        WHERE exercise_id = ${exerciseId} AND closed_at IS NULL
       `;
     }
   }

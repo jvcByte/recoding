@@ -29,15 +29,23 @@ export async function GET(
   `;
 
   if (rows.length === 0) {
-    // Create a new session
+    // Create a new session, inheriting timing from the exercise
     const created = await sql`
-      INSERT INTO sessions (exercise_id, user_id, started_at, current_question_index)
-      VALUES (${exerciseId}, ${userId}, now(), 0)
+      INSERT INTO sessions (exercise_id, user_id, started_at, current_question_index, start_time, end_time, duration_limit)
+      SELECT
+        ${exerciseId},
+        ${userId},
+        now(),
+        0,
+        e.start_time,
+        e.end_time,
+        e.duration_limit
+      FROM exercises e
+      WHERE e.id = ${exerciseId}
       RETURNING id, start_time, end_time, duration_limit,
                 started_at, closed_at, current_question_index
     `;
 
-    // Fetch question_count separately
     const exerciseRows = await sql`
       SELECT question_count FROM exercises WHERE id = ${exerciseId}
     `;
@@ -51,7 +59,7 @@ export async function GET(
   const row = rows[0];
 
   // 423 if start_time is set and now() < start_time
-  if (row.start_time && new Date() < new Date(row.start_time)) {
+  if (row.start_time && new Date() < new Date(row.start_time as string)) {
     return NextResponse.json(
       { error: 'Session not yet open', opens_at: row.start_time },
       { status: 423 }
@@ -66,7 +74,7 @@ export async function GET(
   const now = new Date();
 
   // Auto-close if end_time has passed
-  if (row.end_time && now > new Date(row.end_time)) {
+  if (row.end_time && now > new Date(row.end_time as string)) {
     await sql`
       UPDATE sessions SET closed_at = now()
       WHERE id = ${row.id} AND closed_at IS NULL
@@ -77,7 +85,7 @@ export async function GET(
   // Auto-close if duration_limit has been exceeded
   if (row.duration_limit && row.started_at) {
     const durationSeconds = parseIntervalToSeconds(row.duration_limit);
-    const startedAt = new Date(row.started_at).getTime();
+    const startedAt = new Date(row.started_at as string).getTime();
     const expiresAt = startedAt + durationSeconds * 1000;
     if (now.getTime() > expiresAt) {
       await sql`
@@ -92,23 +100,17 @@ export async function GET(
   let remainingSeconds: number | null = null;
 
   if (row.duration_limit && row.started_at) {
-    // duration_limit is a Postgres INTERVAL — Neon returns it as a string like "01:30:00"
-    // or as seconds depending on driver. Parse it to seconds.
     const durationSeconds = parseIntervalToSeconds(row.duration_limit);
-    const startedAt = new Date(row.started_at).getTime();
+    const startedAt = new Date(row.started_at as string).getTime();
     const expiresAt = startedAt + durationSeconds * 1000;
-    const fromDuration = Math.floor((expiresAt - Date.now()) / 1000);
-    remainingSeconds = fromDuration;
+    remainingSeconds = Math.floor((expiresAt - Date.now()) / 1000);
   }
 
   if (row.end_time) {
     const fromEndTime = Math.floor(
-      (new Date(row.end_time).getTime() - Date.now()) / 1000
+      (new Date(row.end_time as string).getTime() - Date.now()) / 1000
     );
-    remainingSeconds =
-      remainingSeconds === null
-        ? fromEndTime
-        : Math.min(remainingSeconds, fromEndTime);
+    remainingSeconds = remainingSeconds === null ? fromEndTime : Math.min(remainingSeconds, fromEndTime);
   }
 
   const warningLowTime =
@@ -145,16 +147,21 @@ export async function GET(
  */
 function parseIntervalToSeconds(interval: unknown): number {
   if (typeof interval === 'number') return interval;
+  // pg driver returns INTERVAL as a PostgresInterval object
+  if (interval && typeof interval === 'object') {
+    const iv = interval as Record<string, number>;
+    return (iv.years ?? 0) * 31536000
+      + (iv.months ?? 0) * 2592000
+      + (iv.days ?? 0) * 86400
+      + (iv.hours ?? 0) * 3600
+      + (iv.minutes ?? 0) * 60
+      + (iv.seconds ?? 0);
+  }
   if (typeof interval === 'string') {
-    // Handle "HH:MM:SS" or "HH:MM:SS.mmm"
     const parts = interval.split(':');
     if (parts.length === 3) {
-      const hours = parseInt(parts[0], 10);
-      const minutes = parseInt(parts[1], 10);
-      const seconds = parseFloat(parts[2]);
-      return hours * 3600 + minutes * 60 + seconds;
+      return parseInt(parts[0], 10) * 3600 + parseInt(parts[1], 10) * 60 + parseFloat(parts[2]);
     }
-    // Fallback: try parsing as a plain number string
     const n = parseFloat(interval);
     if (!isNaN(n)) return n;
   }

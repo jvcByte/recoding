@@ -106,15 +106,21 @@ export default function SessionView({ exerciseId }: { exerciseId: string }) {
   const [loading, setLoading] = useState(true);
   const [advancing, setAdvancing] = useState(false);
   const [advanceError, setAdvanceError] = useState<string | null>(null);
+  // Local countdown — ticks every second, synced from server every 10s
+  const [localRemaining, setLocalRemaining] = useState<number | null>(null);
 
   const fetchSession = useCallback(async () => {
     try {
       const res = await fetch(`/api/exercises/${exerciseId}/session`);
+      // console.log(res);
       if (res.status === 423) { const d = await res.json(); setError(`Session not yet open. Opens at: ${d.opens_at ?? 'unknown'}`); return; }
       if (res.status === 410) { setSessionClosed(true); return; }
       if (!res.ok) { setError('Failed to load session.'); return; }
       const data: SessionState = await res.json();
-      setSessionState(data); setError(null);
+      setSessionState(data);
+      // Sync local countdown from server
+      setLocalRemaining(data.remaining_seconds);
+      setError(null);
     } catch { setError('Network error loading session.'); }
   }, [exerciseId]);
 
@@ -141,7 +147,16 @@ export default function SessionView({ exerciseId }: { exerciseId: string }) {
 
   useEffect(() => { (async () => { setLoading(true); await fetchSession(); setLoading(false); })(); }, [fetchSession]);
   useEffect(() => { if (sessionState) fetchQuestion(activeIndex); }, [sessionState, activeIndex, fetchQuestion]);
+  // Server sync every 10s
   useEffect(() => { const t = setInterval(fetchSession, 10_000); return () => clearInterval(t); }, [fetchSession]);
+  // Local 1-second countdown
+  useEffect(() => {
+    if (localRemaining === null || sessionClosed) return;
+    const t = setInterval(() => {
+      setLocalRemaining((prev) => (prev !== null && prev > 0 ? prev - 1 : prev));
+    }, 1000);
+    return () => clearInterval(t);
+  }, [localRemaining, sessionClosed]);
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300, color: 'var(--text3)' }}>
@@ -170,7 +185,7 @@ export default function SessionView({ exerciseId }: { exerciseId: string }) {
     return <div style={{ color: 'var(--text3)' }}>No session data.</div>;
   }
 
-  const displayRemainingSeconds = sessionClosed ? 0 : sessionState.remaining_seconds;
+  const displayRemainingSeconds = sessionClosed ? 0 : localRemaining;
 
   return (
     <div className="session-layout">
@@ -189,7 +204,7 @@ export default function SessionView({ exerciseId }: { exerciseId: string }) {
           questionStatuses={sessionState.question_statuses}
           onNavigate={(i) => setViewingIndex(i === sessionState.current_question_index ? null : i)}
         />
-        <TimerDisplay remainingSeconds={displayRemainingSeconds} warningLowTime={sessionState.warning_low_time} />
+        <TimerDisplay remainingSeconds={displayRemainingSeconds} warningLowTime={displayRemainingSeconds !== null && displayRemainingSeconds < 300} />
       </div>
 
       {/* Question */}

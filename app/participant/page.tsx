@@ -21,6 +21,7 @@ export default async function ExerciseCataloguePage() {
   const userId = session.user.id;
   let exercises: Exercise[] = [];
   let fetchError = false;
+  let activeSessionIds = new Set<string>();
 
   try {
     const rows = await sql`
@@ -31,6 +32,17 @@ export default async function ExerciseCataloguePage() {
       ORDER BY e.title
     `;
     exercises = rows as unknown as Exercise[];
+
+    if (exercises.length > 0) {
+      const ids = exercises.map((e) => e.id);
+      const sessions = await sql`
+        SELECT exercise_id FROM sessions
+        WHERE user_id = ${userId}
+          AND exercise_id = ANY(${ids}::uuid[])
+          AND closed_at IS NULL
+      `;
+      activeSessionIds = new Set(sessions.map((s) => s.exercise_id as string));
+    }
   } catch {
     fetchError = true;
   }
@@ -69,7 +81,7 @@ export default async function ExerciseCataloguePage() {
                   </div>
                 </div>
                 <Link href={`/participant/session/${exercise.id}`} className="btn btn-primary">
-                  Start →
+                  {activeSessionIds.has(exercise.id) ? 'Continue →' : 'Start →'}
                 </Link>
               </div>
             ))}
