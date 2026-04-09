@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 import { sql } from '@/lib/db';
 import Navbar from '@/app/components/Navbar';
 
@@ -31,7 +31,7 @@ export default async function SubmissionListPage({ params }: Props) {
     WHERE s.exercise_id = ${exerciseId}
     ORDER BY u.username, sub.question_index
   `;
-  const submissions = rows as SubmissionRow[];
+  const submissions = rows as unknown as SubmissionRow[];
   const flagged = submissions.filter((s) => s.is_flagged).length;
   const final = submissions.filter((s) => s.is_final).length;
 

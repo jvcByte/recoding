@@ -1,10 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Bundle the docs/ directory so fs reads work in serverless/edge deployments.
-  // Without this, the files are not included in the deployment output.
-  outputFileTracingIncludes: {
-    '/api/exercises/*/question/*': ['./docs/**/*'],
-  },
   async headers() {
     return [
       {

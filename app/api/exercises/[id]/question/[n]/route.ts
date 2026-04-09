@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { loadExercise } from '@/lib/questions';
 
@@ -44,7 +44,7 @@ export async function GET(
   }
 
   // 403 if question index is beyond current progress (sequential enforcement)
-  if (questionIndex > row.current_question_index) {
+  if (questionIndex > (row.current_question_index as number)) {
     return NextResponse.json(
       { error: 'Question not yet available' },
       { status: 403 }

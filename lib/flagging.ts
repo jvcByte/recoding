@@ -27,7 +27,7 @@ export async function evaluateFlags(submissionId: string): Promise<FlagResult> {
     FROM paste_events
     WHERE submission_id = ${submissionId}
   `;
-  const pasteCount: number = pasteResult[0]?.count ?? 0;
+  const pasteCount: number = (pasteResult[0]?.count as number) ?? 0;
 
   if (pasteCount > 0) {
     flag_reasons.push(`paste_detected: ${pasteCount} paste event(s) recorded`);
@@ -40,7 +40,7 @@ export async function evaluateFlags(submissionId: string): Promise<FlagResult> {
     JOIN submissions s ON s.session_id = fe.session_id
     WHERE s.id = ${submissionId}
   `;
-  const focusLossCount: number = focusResult[0]?.count ?? 0;
+  const focusLossCount: number = (focusResult[0]?.count as number) ?? 0;
 
   if (focusLossCount > FOCUS_LOSS_THRESHOLD) {
     flag_reasons.push(
@@ -58,8 +58,8 @@ export async function evaluateFlags(submissionId: string): Promise<FlagResult> {
   `;
 
   if (editResult.length > 0) {
-    const editCount: number = editResult[0].edit_count;
-    const responseText: string = editResult[0].response_text ?? '';
+    const editCount: number = editResult[0].edit_count as number;
+    const responseText: string = (editResult[0].response_text as string) ?? '';
 
     if (
       responseText.length > MIN_RESPONSE_LENGTH_FOR_EDIT_CHECK &&
@@ -76,7 +76,7 @@ export async function evaluateFlags(submissionId: string): Promise<FlagResult> {
       FROM submissions
       WHERE id = ${submissionId}
     `;
-    const responseText: string = submissionResult[0]?.response_text ?? '';
+    const responseText: string = (submissionResult[0]?.response_text as string) ?? '';
 
     if (responseText.length > MIN_RESPONSE_LENGTH_FOR_EDIT_CHECK) {
       flag_reasons.push(

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 import { sql } from '@/lib/db';
 
 export async function POST(
@@ -36,8 +36,8 @@ export async function POST(
     return NextResponse.json({ error: 'Session closed' }, { status: 410 });
   }
 
-  const currentIndex: number = row.current_question_index;
-  const questionCount: number = row.question_count;
+  const currentIndex: number = row.current_question_index as number;
+  const questionCount: number = row.question_count as number;
 
   // Check if there is a next question
   if (currentIndex + 1 >= questionCount) {
@@ -64,7 +64,7 @@ export async function POST(
     RETURNING current_question_index
   `;
 
-  const newIndex: number = updated[0].current_question_index;
+  const newIndex: number = updated[0].current_question_index as number;
 
   return NextResponse.json({ new_index: newIndex }, { status: 200 });
 }

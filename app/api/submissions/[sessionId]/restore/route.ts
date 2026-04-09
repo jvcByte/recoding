@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 import { sql } from '@/lib/db';
 
 export async function GET(
@@ -30,7 +30,7 @@ export async function GET(
   }
 
   const dbSession = sessionRows[0];
-  const currentIndex: number = dbSession.current_question_index;
+  const currentIndex: number = dbSession.current_question_index as number;
 
   // Use ?q= param if provided (for navigating back), otherwise use current index
   const qParam = req.nextUrl.searchParams.get('q');
