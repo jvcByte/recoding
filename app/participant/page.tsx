@@ -30,7 +30,7 @@ export default async function ExerciseCataloguePage() {
       WHERE ea.user_id = ${userId} AND e.enabled = true
       ORDER BY e.title
     `;
-    exercises = rows as Exercise[];
+    exercises = rows as unknown as Exercise[];
   } catch {
     fetchError = true;
   }

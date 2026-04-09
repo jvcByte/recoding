@@ -78,7 +78,7 @@ export default function ExerciseManager({ exercise: initial, sessions, assignedU
       <div className="card">
         <div className="card-header">
           <span className="card-title">Status</span>
-          <span className={`badge ${exercise.enabled ? 'badge-green' : 'badge-red'}`}>
+          <span className={`badge ${exercise.enabled ? 'badge-green' : 'badge-gray'}`}>
             {exercise.enabled ? 'Enabled' : 'Disabled'}
           </span>
         </div>

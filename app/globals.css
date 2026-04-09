@@ -221,11 +221,11 @@ a:hover { color: var(--text); }
 .btn:active { transform: scale(0.97); }
 .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent3), var(--accent));
-  color: #fff;
-  box-shadow: 0 2px 12px rgba(99,102,241,0.3);
+  background: var(--bg4);
+  color: var(--text);
+  border: 1px solid var(--border2);
 }
-.btn-primary:hover { box-shadow: 0 4px 20px rgba(99,102,241,0.45); opacity: 1; }
+.btn-primary:hover { background: #1e2535; border-color: rgba(255,255,255,0.18); color: #fff; opacity: 1; }
 .btn-secondary { background: var(--bg3); color: var(--text2); border: 1px solid var(--border); }
 .btn-secondary:hover { background: var(--bg4); color: var(--text); border-color: var(--border2); opacity: 1; }
 .btn-success { background: rgba(16,185,129,0.15); color: var(--green); border: 1px solid rgba(16,185,129,0.25); }

@@ -23,7 +23,7 @@ async function getExercises(): Promise<Exercise[]> {
     GROUP BY e.id, e.slug, e.title, e.enabled, e.question_count
     ORDER BY e.title
   `;
-  return rows as Exercise[];
+  return rows as unknown as Exercise[];
 }
 
 import { Radio } from 'lucide-react';
@@ -57,15 +57,15 @@ export default async function InstructorDashboard() {
             </div>
             <div className="stat-tile">
               <span className="label">Enabled</span>
-              <span className="value" style={{ color: 'var(--green)' }}>{enabled}</span>
+              <span className="value">{enabled}</span>
             </div>
             <div className="stat-tile">
               <span className="label">Disabled</span>
-              <span className="value" style={{ color: 'var(--red)' }}>{exercises.length - enabled}</span>
+              <span className="value">{exercises.length - enabled}</span>
             </div>
             <div className="stat-tile">
               <span className="label">Assignments</span>
-              <span className="value" style={{ color: 'var(--accent)' }}>{totalAssigned}</span>
+              <span className="value">{totalAssigned}</span>
             </div>
           </div>
 
@@ -93,7 +93,7 @@ export default async function InstructorDashboard() {
                       <tr key={ex.id}>
                         <td style={{ fontWeight: 600 }}>{ex.title}</td>
                         <td>
-                          <span className={`badge ${ex.enabled ? 'badge-green' : 'badge-red'}`}>
+                          <span className={`badge ${ex.enabled ? 'badge-green' : 'badge-gray'}`}>
                             {ex.enabled ? 'Enabled' : 'Disabled'}
                           </span>
                         </td>
