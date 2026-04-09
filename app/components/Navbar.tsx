@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import LogoutButton from './LogoutButton';
-import { GraduationCap, User, Hexagon } from 'lucide-react';
+import { GraduationCap, User } from 'lucide-react';
 
 interface NavLink { href: string; label: string; }
 interface Props { username?: string; role?: string; links?: NavLink[]; }
@@ -11,8 +11,10 @@ export default function Navbar({ username, role, links = [] }: Props) {
       <div className="container">
         <div className="navbar-inner">
           <Link href={role === 'instructor' ? '/instructor' : '/participant'} className="navbar-brand">
-            <Hexagon size={18} strokeWidth={1.5} /> Recoding
+            <div className="logo-mark">01</div>
+            <span style={{ color: 'var(--text2)', fontWeight: 400 }}>Recoding</span>
           </Link>
+
           {links.length > 0 && (
             <div className="navbar-nav">
               {links.map((l) => (
@@ -20,12 +22,13 @@ export default function Navbar({ username, role, links = [] }: Props) {
               ))}
             </div>
           )}
+
           <div className="navbar-right">
             {username && (
               <span className="navbar-user">
                 {role === 'instructor'
-                  ? <GraduationCap size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />
-                  : <User size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />
+                  ? <GraduationCap size={11} />
+                  : <User size={11} />
                 }
                 {username}
               </span>

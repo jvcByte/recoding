@@ -153,98 +153,56 @@ export default function LiveMonitor() {
     };
   }, []);
 
-  // ── Render ──────────────────────────────────────────────────────────────────
-
-  const containerStyle: React.CSSProperties = {
-    fontFamily: 'monospace',
-    fontSize: 13,
-    background: '#0f172a',
-    color: '#e2e8f0',
-    borderRadius: 8,
-    padding: 16,
-    minHeight: 200,
-  };
-
-  const headerStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
-  };
-
-  const dotStyle: React.CSSProperties = {
-    width: 10,
-    height: 10,
-    borderRadius: '50%',
-    background: connected ? '#22c55e' : '#ef4444',
-    display: 'inline-block',
-  };
-
-  const tableStyle: React.CSSProperties = {
-    width: '100%',
-    borderCollapse: 'collapse',
-  };
-
-  const thStyle: React.CSSProperties = {
-    textAlign: 'left',
-    padding: '4px 8px',
-    color: '#94a3b8',
-    fontWeight: 600,
-    borderBottom: '1px solid #1e293b',
-    fontSize: 11,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  };
-
-  const tdStyle: React.CSSProperties = {
-    padding: '5px 8px',
-    borderBottom: '1px solid #1e293b',
-    verticalAlign: 'middle',
-  };
-
   return (
-    <div style={containerStyle}>
-      <div style={headerStyle}>
-        <span style={dotStyle} />
-        <span style={{ fontWeight: 700, fontSize: 14 }}>
+    <div style={{ fontFamily: 'monospace', fontSize: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <span style={{
+          width: 7, height: 7, borderRadius: '50%',
+          background: connected ? 'var(--green)' : 'var(--red)',
+          display: 'inline-block',
+          boxShadow: connected ? '0 0 6px var(--green)' : 'none',
+        }} />
+        <span style={{ fontSize: 11, color: connected ? 'var(--green)' : 'var(--text3)', fontWeight: 600 }}>
           {connected ? 'Connected' : 'Disconnected'}
         </span>
         {lastHeartbeat && (
-          <span style={{ color: '#64748b', fontSize: 11 }}>
-            last heartbeat {lastHeartbeat}
+          <span style={{ color: 'var(--text3)', fontSize: 10, marginLeft: 'auto' }}>
+            heartbeat {lastHeartbeat}
           </span>
         )}
       </div>
 
       {events.length === 0 ? (
-        <div style={{ color: '#475569', padding: '24px 0', textAlign: 'center' }}>
+        <div style={{ color: 'var(--text3)', padding: '2rem 0', textAlign: 'center', fontSize: 12 }}>
           Waiting for events…
         </div>
       ) : (
-        <table style={tableStyle}>
-          <thead>
-            <tr>
-              <th style={thStyle}>Time</th>
-              <th style={thStyle}>Type</th>
-              <th style={thStyle}>Session</th>
-              <th style={thStyle}>Details</th>
-            </tr>
-          </thead>
-          <tbody>
-            {events.map((ev, i) => (
-              <tr key={i}>
-                <td style={tdStyle}>{occurredAt(ev)}</td>
-                <td style={tdStyle}>
-                  <span style={badges[ev.type] ?? badgeBase}>{ev.type}</span>
-                </td>
-                <td style={{ ...tdStyle, color: '#94a3b8' }}>{sessionId(ev)}</td>
-                <td style={tdStyle}>
-                  <EventDetail event={ev} />
-                </td>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Type</th>
+                <th>Session</th>
+                <th>Details</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {events.map((ev, i) => (
+                <tr key={i}>
+                  <td style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text3)' }}>{occurredAt(ev)}</td>
+                  <td>
+                    <span className={`badge ${ev.type === 'paste' ? 'badge-red' : ev.type === 'focus' ? 'badge-orange' : ev.type === 'keystroke_batch' ? 'badge-purple' : 'badge-gray'}`}>
+                      {ev.type}
+                    </span>
+                  </td>
+                  <td style={{ color: 'var(--text3)', fontFamily: 'monospace' }}>{sessionId(ev)}</td>
+                  <td><EventDetail event={ev} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
