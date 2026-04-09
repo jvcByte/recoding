@@ -4,6 +4,7 @@ import { useState, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 
+import { Hexagon } from 'lucide-react';
 
 function LoginForm() {  const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl');
@@ -43,7 +44,9 @@ function LoginForm() {  const searchParams = useSearchParams();
     <div className="login-page">
       <div className="login-card">
         <div className="login-logo">
-          <div className="login-logo-mark">01</div>
+          <div className="login-logo-icon" style={{ marginBottom: '0.75rem' }}>
+            <Hexagon size={44} strokeWidth={1} style={{ color: 'var(--accent2)' }} />
+          </div>
           <div className="login-logo-title">Recoding Platform</div>
           <div className="login-logo-sub">Sign in to continue</div>
         </div>

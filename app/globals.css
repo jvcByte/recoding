@@ -89,20 +89,6 @@ a:hover { color: var(--text); }
   gap: 0.6rem;
   letter-spacing: 0.01em;
 }
-.navbar-brand .logo-mark {
-  width: 28px;
-  height: 28px;
-  background: linear-gradient(135deg, var(--accent3), var(--accent2));
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 800;
-  color: #fff;
-  letter-spacing: -0.5px;
-  flex-shrink: 0;
-}
 .navbar-nav { display: flex; align-items: center; gap: 0.125rem; }
 .nav-link {
   padding: 0.35rem 0.65rem;
@@ -470,20 +456,7 @@ tbody tr:hover td { color: var(--text); }
     0 0 80px rgba(99,102,241,0.06);
 }
 .login-logo { text-align: center; margin-bottom: 2.25rem; }
-.login-logo-mark {
-  width: 44px;
-  height: 44px;
-  background: linear-gradient(135deg, var(--accent3), var(--accent2));
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  font-weight: 800;
-  color: #fff;
-  margin: 0 auto 1rem;
-  box-shadow: 0 8px 24px rgba(99,102,241,0.35);
-}
+.login-logo-icon { display: flex; justify-content: center; margin-bottom: 0.75rem; }
 .login-logo-title {
   font-size: 1.1rem;
   font-weight: 700;
