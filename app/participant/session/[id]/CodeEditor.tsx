@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Editor, { OnMount } from '@monaco-editor/react';
 import type * as Monaco from 'monaco-editor';
-import { Play, RotateCcw, Pause, AlertTriangle } from 'lucide-react';
+import { Play } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface RunResult {
   stdout: string;
@@ -34,7 +35,6 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle');
   const [stdin, setStdin] = useState('');
   const [showStdin, setShowStdin] = useState(false);
-  const [showPasteBanner, setShowPasteBanner] = useState(false);
 
   const codeRef = useRef(code);
   codeRef.current = code;
@@ -42,7 +42,6 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
   const submissionIdRef = useRef<string | null>(null);
   const editBufferRef = useRef<EditEvent[]>([]);
   const prevLengthRef = useRef(starter.length);
-  const pasteBannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const focusLostAtRef = useRef<string | null>(null);
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
 
@@ -51,7 +50,6 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
     setCode(starter);
     setResult(null);
     setSaveStatus('idle');
-    setShowPasteBanner(false);
     lastSavedRef.current = '';
     submissionIdRef.current = null;
     editBufferRef.current = [];
@@ -101,8 +99,9 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
         setSaveStatus('saved');
       } else {
         setSaveStatus('failed');
+        toast.error('Save failed');
       }
-    } catch { setSaveStatus('failed'); }
+    } catch { setSaveStatus('failed'); toast.error('Save failed'); }
   }, [sessionId, questionIndex, isClosed]);
 
   useEffect(() => {
@@ -121,10 +120,8 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
         : 0;
       const occurredAt = new Date().toISOString();
 
-      // Show banner
-      setShowPasteBanner(true);
-      if (pasteBannerTimerRef.current) clearTimeout(pasteBannerTimerRef.current);
-      pasteBannerTimerRef.current = setTimeout(() => setShowPasteBanner(false), 5000);
+      // Show toast instead of banner
+      toast.warning('Paste detected — this activity is being recorded', { duration: 4000 });
 
       // Fire paste event to API
       const fire = (submissionId: string) => {
@@ -200,11 +197,6 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
     };
   }, [sessionId, isClosed]);
 
-  // ── Cleanup ───────────────────────────────────────────────────────────────
-  useEffect(() => {
-    return () => { if (pasteBannerTimerRef.current) clearTimeout(pasteBannerTimerRef.current); };
-  }, []);
-
   // ── Run code ──────────────────────────────────────────────────────────────
   async function runCode() {
     setRunning(true);
@@ -230,12 +222,6 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-      {showPasteBanner && (
-        <div className="alert alert-warning" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <AlertTriangle size={14} /> Paste detected — this activity is being recorded
-        </div>
-      )}
-
       {/* Toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>

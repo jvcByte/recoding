@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from 'sonner';
 
 interface Props {
   submissionId: string;
@@ -10,13 +11,9 @@ interface Props {
 export default function ReviewNote({ submissionId, initialNote }: Props) {
   const [note, setNote] = useState(initialNote ?? '');
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function save() {
     setSaving(true);
-    setSaved(false);
-    setError(null);
     try {
       const res = await fetch(`/api/instructor/submissions/${submissionId}/review`, {
         method: 'PUT',
@@ -24,9 +21,9 @@ export default function ReviewNote({ submissionId, initialNote }: Props) {
         body: JSON.stringify({ review_note: note }),
       });
       if (!res.ok) throw new Error(await res.text());
-      setSaved(true);
+      toast.success('Review note saved');
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to save');
+      toast.error(e instanceof Error ? e.message : 'Failed to save');
     } finally {
       setSaving(false);
     }
@@ -36,17 +33,15 @@ export default function ReviewNote({ submissionId, initialNote }: Props) {
     <div>
       <textarea
         value={note}
-        onChange={(e) => { setNote(e.target.value); setSaved(false); }}
+        onChange={(e) => setNote(e.target.value)}
         rows={4}
         placeholder="Add a review note…"
         className="form-textarea"
       />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
+      <div style={{ marginTop: 8 }}>
         <button onClick={save} disabled={saving} className="btn btn-primary btn-sm">
           {saving ? 'Saving…' : 'Save Note'}
         </button>
-        {saved && <span style={{ color: 'var(--green)', fontSize: 13 }}>Saved</span>}
-        {error && <span style={{ color: 'var(--red)', fontSize: 13 }}>{error}</span>}
       </div>
     </div>
   );

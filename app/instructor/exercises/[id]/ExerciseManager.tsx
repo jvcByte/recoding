@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { UserCheck, UserX } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface Exercise {
   id: string; slug: string; title: string; enabled: boolean;
@@ -23,8 +24,6 @@ export default function ExerciseManager({ exercise: initial, sessions, assignedU
   const [exercise, setExercise] = useState(initial);
   const [assignedUsers, setAssignedUsers] = useState(initialAssigned);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   const unstartedSession = sessions.find((s) => !s.started_at);
   const [startTime, setStartTime] = useState(unstartedSession?.start_time?.slice(0, 16) ?? '');
@@ -32,7 +31,7 @@ export default function ExerciseManager({ exercise: initial, sessions, assignedU
   const [durationLimit, setDurationLimit] = useState(unstartedSession?.duration_limit ?? '');
 
   async function patch(body: Record<string, unknown>) {
-    setSaving(true); setError(null); setSuccess(null);
+    setSaving(true);
     try {
       const res = await fetch(`/api/instructor/exercises/${exercise.id}`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -41,9 +40,9 @@ export default function ExerciseManager({ exercise: initial, sessions, assignedU
       if (!res.ok) throw new Error(await res.text());
       const updated = await res.json();
       setExercise(updated);
-      setSuccess('Changes saved.');
+      toast.success('Saved');
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Unknown error');
+      toast.error(e instanceof Error ? e.message : 'Unknown error');
     } finally {
       setSaving(false);
     }
@@ -53,7 +52,7 @@ export default function ExerciseManager({ exercise: initial, sessions, assignedU
     const newIds = currentlyAssigned
       ? assignedUsers.filter((u) => u.id !== userId).map((u) => u.id)
       : [...assignedUsers.map((u) => u.id), userId];
-    setSaving(true); setError(null); setSuccess(null);
+    setSaving(true);
     try {
       const res = await fetch(`/api/instructor/exercises/${exercise.id}`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -64,9 +63,9 @@ export default function ExerciseManager({ exercise: initial, sessions, assignedU
       setExercise(updated);
       const updatedIds: string[] = updated.assigned_user_ids ?? [];
       setAssignedUsers(allParticipants.filter((p) => updatedIds.includes(p.id)));
-      setSuccess('Assignment updated.');
+      toast.success('Assignment updated');
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Unknown error');
+      toast.error(e instanceof Error ? e.message : 'Unknown error');
     } finally {
       setSaving(false);
     }
@@ -74,8 +73,6 @@ export default function ExerciseManager({ exercise: initial, sessions, assignedU
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-      {error && <div className="alert alert-error">{error}</div>}
-      {success && <div className="alert alert-success">{success}</div>}
 
       {/* Status */}
       <div className="card">
