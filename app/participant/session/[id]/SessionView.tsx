@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import ResponseEditor from './ResponseEditor';
 import CodeEditor from './CodeEditor';
-import { AlertTriangle, Check, Circle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 
 interface QuestionStatus { question_index: number; has_draft: boolean; is_final: boolean; }
 interface SessionState {
@@ -38,34 +38,60 @@ function ProgressBar({ currentIndex, viewingIndex, questionCount, questionStatus
 }) {
   const statusMap = new Map(questionStatuses.map((s) => [s.question_index, s]));
   return (
-    <div className="progress-bar">
-      <span style={{ fontWeight: 700, fontSize: 15 }}>
-        Q {viewingIndex + 1} <span style={{ color: 'var(--text3)', fontWeight: 400 }}>of {questionCount}</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+      {/* Counter */}
+      <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>
+        Q {viewingIndex + 1}
+        <span style={{ color: 'var(--text3)', fontWeight: 400 }}> / {questionCount}</span>
       </span>
-      <div className="progress-dots">
+
+      {/* Dots */}
+      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
         {Array.from({ length: questionCount }, (_, i) => {
           const status = statusMap.get(i);
           const reachable = i <= currentIndex;
-          let color = 'var(--bg3)';
-          let title = `Question ${i + 1}: not started`;
-          if (status?.is_final) { color = 'var(--green)'; title = `Q${i + 1}: final`; }
-          else if (status?.has_draft) { color = 'var(--orange)'; title = `Q${i + 1}: draft`; }
-          else if (i === currentIndex) { color = 'var(--accent)'; title = `Q${i + 1}: current`; }
+          let bg = 'var(--bg5)';
+          let title = `Q${i + 1}: not started`;
+          if (status?.is_final)       { bg = 'var(--green)';  title = `Q${i + 1}: final`; }
+          else if (status?.has_draft) { bg = 'var(--orange)'; title = `Q${i + 1}: draft`; }
+          else if (i === currentIndex){ bg = 'var(--accent)'; title = `Q${i + 1}: current`; }
+          const isViewing = i === viewingIndex;
           return (
             <div
               key={i}
               title={reachable ? title : `Q${i + 1}: not yet reached`}
               onClick={() => reachable && onNavigate(i)}
-              className={`progress-dot${reachable ? ' clickable' : ''}${i === viewingIndex ? ' active' : ''}`}
-              style={{ background: color, opacity: reachable ? 1 : 0.3 }}
+              style={{
+                width: isViewing ? 12 : 9,
+                height: isViewing ? 12 : 9,
+                borderRadius: '50%',
+                background: bg,
+                opacity: reachable ? 1 : 0.2,
+                cursor: reachable ? 'pointer' : 'default',
+                border: isViewing ? '2px solid rgba(255,255,255,0.5)' : '2px solid transparent',
+                boxShadow: isViewing ? `0 0 8px ${bg}` : 'none',
+                transition: 'transform 0.15s, box-shadow 0.15s',
+                flexShrink: 0,
+              }}
+              onMouseEnter={e => { if (reachable) (e.currentTarget as HTMLDivElement).style.transform = 'scale(1.35)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = 'scale(1)'; }}
             />
           );
         })}
       </div>
-      <div style={{ fontSize: 11, color: 'var(--text3)', display: 'flex', gap: 10, alignItems: 'center' }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: 'var(--accent)' }}><Circle size={8} fill="currentColor" /> current</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: 'var(--orange)' }}><Circle size={8} fill="currentColor" /> draft</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: 'var(--green)' }}><Circle size={8} fill="currentColor" /> final</span>
+
+      {/* Legend */}
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        {[
+          { color: 'var(--accent)', label: 'current' },
+          { color: 'var(--orange)', label: 'draft' },
+          { color: 'var(--green)',  label: 'final' },
+        ].map(({ color, label }) => (
+          <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, display: 'inline-block', flexShrink: 0 }} />
+            {label}
+          </span>
+        ))}
       </div>
     </div>
   );
