@@ -12,6 +12,8 @@ interface SubmissionRow {
   submitted_at: string; username: string;
 }
 
+import { Flag } from 'lucide-react';
+
 export default async function SubmissionListPage({ params }: Props) {
   const { id: exerciseId } = params;
   const session = await getServerSession(authOptions);
@@ -105,7 +107,7 @@ export default async function SubmissionListPage({ params }: Props) {
                         </td>
                         <td>
                           {sub.is_flagged
-                            ? <span className="badge badge-red" title={sub.flag_reasons?.join(', ')}>🚩 Flagged</span>
+                            ? <span className="badge badge-red" title={sub.flag_reasons?.join(', ')} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Flag size={10} /> Flagged</span>
                             : <span style={{ color: 'var(--text3)' }}>—</span>
                           }
                         </td>

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Editor, { OnMount } from '@monaco-editor/react';
 import type * as Monaco from 'monaco-editor';
+import { Play, RotateCcw, Pause, AlertTriangle } from 'lucide-react';
 
 interface RunResult {
   stdout: string;
@@ -230,7 +231,9 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
       {showPasteBanner && (
-        <div className="alert alert-warning">⚠️ Paste detected — this activity is being recorded</div>
+        <div className="alert alert-warning" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <AlertTriangle size={14} /> Paste detected — this activity is being recorded
+        </div>
       )}
 
       {/* Toolbar */}
@@ -240,13 +243,13 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
         </span>
         <div style={{ flex: 1 }} />
         {saveStatus === 'saving' && <span style={{ fontSize: 12, color: 'var(--text3)' }}>Saving…</span>}
-        {saveStatus === 'saved' && <span style={{ fontSize: 12, color: 'var(--green)' }}>✓ Saved</span>}
+        {saveStatus === 'saved' && <span style={{ fontSize: 12, color: 'var(--green)' }}>Saved</span>}
         {saveStatus === 'failed' && <span style={{ fontSize: 12, color: 'var(--red)' }}>Save failed</span>}
         <button onClick={() => setShowStdin((s) => !s)} className="btn btn-ghost btn-sm">
           {showStdin ? 'Hide stdin' : 'stdin'}
         </button>
-        <button onClick={runCode} disabled={running || isClosed} className="btn btn-success">
-          {running ? '⏳ Running…' : '▶ Run'}
+        <button onClick={runCode} disabled={running || isClosed} className="btn btn-success" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Play size={13} /> {running ? 'Running…' : 'Run'}
         </button>
       </div>
 
@@ -297,7 +300,7 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--border)', background: success ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)' }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: success ? 'var(--green)' : 'var(--red)' }}>
-              {success ? '✓ Exit 0' : `✗ Exit ${result?.exit_code ?? '?'}`}
+              {success ? `Exit 0` : `Exit ${result?.exit_code ?? '?'}`}
             </span>
             <button onClick={() => setResult(null)} className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }}>Clear</button>
           </div>
@@ -324,7 +327,7 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
 
       {running && !result && (
         <div style={{ textAlign: 'center', color: 'var(--text3)', fontSize: 13, padding: '1rem' }}>
-          ⏳ Compiling and running…
+          Compiling and running…
         </div>
       )}
     </div>

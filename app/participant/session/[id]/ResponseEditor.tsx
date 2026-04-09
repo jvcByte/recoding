@@ -386,14 +386,14 @@ export default function ResponseEditor({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
       {isClosed && !isFinal && <div className="alert alert-error">Session closed</div>}
-      {isFinal && <div className="alert alert-success">✓ Final submission — no further edits allowed</div>}
-      {showPasteBanner && <div className="alert alert-warning">⚠️ Paste detected — this activity is being recorded</div>}
+      {isFinal && <div className="alert alert-success">Final submission — no further edits allowed</div>}
+      {showPasteBanner && <div className="alert alert-warning">Paste detected — this activity is being recorded</div>}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
         <label htmlFor="response" style={{ fontWeight: 700, fontSize: 14 }}>Your Response</label>
         {hasUnsaved && !isDisabled && <span className="badge badge-orange">Unsaved draft</span>}
         {saveStatus === 'saving' && <span style={{ fontSize: 12, color: 'var(--text3)' }}>Saving…</span>}
-        {saveStatus === 'saved' && <span style={{ fontSize: 12, color: 'var(--green)' }}>✓ Saved</span>}
+        {saveStatus === 'saved' && <span style={{ fontSize: 12, color: 'var(--green)' }}>Saved</span>}
         {saveStatus === 'failed' && <span style={{ fontSize: 12, color: 'var(--red)' }}>Save failed</span>}
       </div>
 
@@ -413,7 +413,7 @@ export default function ResponseEditor({
       {!isDisabled && (
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <button onClick={handleFinalSubmit} disabled={saveStatus === 'saving'} className="btn btn-primary">
-            {saveStatus === 'saving' ? 'Saving…' : '✓ Submit Final Answer'}
+            {saveStatus === 'saving' ? 'Saving…' : 'Submit Final Answer'}
           </button>
         </div>
       )}

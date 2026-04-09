@@ -26,6 +26,8 @@ async function getExercises(): Promise<Exercise[]> {
   return rows as Exercise[];
 }
 
+import { Radio } from 'lucide-react';
+
 export default async function InstructorDashboard() {
   const session = await getServerSession(authOptions);
   const exercises = await getExercises();
@@ -119,7 +121,9 @@ export default async function InstructorDashboard() {
           <div className="card">
             <div className="card-header">
               <span className="card-title">Live Monitor</span>
-              <span className="badge badge-green" style={{ fontSize: 10 }}>● LIVE</span>
+              <span className="badge badge-green" style={{ fontSize: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Radio size={10} /> LIVE
+              </span>
             </div>
             <LiveMonitor />
           </div>

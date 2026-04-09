@@ -45,7 +45,7 @@ export default function ReviewNote({ submissionId, initialNote }: Props) {
         <button onClick={save} disabled={saving} className="btn btn-primary btn-sm">
           {saving ? 'Saving…' : 'Save Note'}
         </button>
-        {saved && <span style={{ color: 'var(--green)', fontSize: 13 }}>✓ Saved</span>}
+        {saved && <span style={{ color: 'var(--green)', fontSize: 13 }}>Saved</span>}
         {error && <span style={{ color: 'var(--red)', fontSize: 13 }}>{error}</span>}
       </div>
     </div>

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { UserCheck, UserX } from 'lucide-react';
 
 interface Exercise {
   id: string; slug: string; title: string; enabled: boolean;
@@ -142,7 +143,10 @@ export default function ExerciseManager({ exercise: initial, sessions, assignedU
               return (
                 <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0.75rem', background: 'var(--bg3)', borderRadius: 'var(--radius-sm)', border: `1px solid ${assigned ? 'rgba(99,102,241,0.3)' : 'var(--border)'}` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ fontSize: 16 }}>{assigned ? '✅' : '👤'}</span>
+                    {assigned
+                      ? <UserCheck size={15} style={{ color: 'var(--green)' }} />
+                      : <UserX size={15} style={{ color: 'var(--text3)' }} />
+                    }
                     <span style={{ fontWeight: assigned ? 600 : 400, color: assigned ? 'var(--text)' : 'var(--text3)', fontSize: 13 }}>{p.username}</span>
                   </div>
                   <button

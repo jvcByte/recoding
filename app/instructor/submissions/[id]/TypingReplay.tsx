@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { Play, Pause, RotateCcw } from 'lucide-react';
 
 interface EditEvent {
   id: string;
@@ -80,7 +81,12 @@ export default function TypingReplay({ editEvents, finalText }: Props) {
             fontSize: 13,
           }}
         >
-          {playing ? '⏸ Pause' : step >= total && total > 0 ? '↺ Replay' : '▶ Play'}
+          {playing
+            ? <><Pause size={13} /> Pause</>
+            : step >= total && total > 0
+              ? <><RotateCcw size={13} /> Replay</>
+              : <><Play size={13} /> Play</>
+          }
         </button>
         <span style={{ color: 'var(--text3)' }}>
           Step {step} / {total}

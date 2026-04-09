@@ -9,6 +9,8 @@ import Navbar from '@/app/components/Navbar';
 
 interface Props { params: { id: string }; }
 
+import { Flag, Check } from 'lucide-react';
+
 export default async function SubmissionDetailPage({ params }: Props) {
   const { id: submissionId } = params;
   const session = await getServerSession(authOptions);
@@ -60,7 +62,7 @@ export default async function SubmissionDetailPage({ params }: Props) {
               <p className="page-sub">Question {sub.question_index + 1} · {new Date(sub.submitted_at).toLocaleString()}</p>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              {sub.is_flagged && <span className="badge badge-red">🚩 Flagged</span>}
+              {sub.is_flagged && <span className="badge badge-red" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Flag size={10} /> Flagged</span>}
               <span className={`badge ${sub.is_final ? 'badge-green' : 'badge-gray'}`}>
                 {sub.is_final ? 'Final' : 'Draft'}
               </span>

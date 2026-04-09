@@ -12,6 +12,8 @@ interface Exercise {
   question_count: number;
 }
 
+import { InboxIcon } from 'lucide-react';
+
 export default async function ExerciseCataloguePage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect('/login');
@@ -51,7 +53,7 @@ export default async function ExerciseCataloguePage() {
 
           {!fetchError && exercises.length === 0 && (
             <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-              <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>📭</div>
+              <InboxIcon size={40} style={{ margin: '0 auto 0.75rem', color: 'var(--text3)', display: 'block' }} />
               <p style={{ color: 'var(--text2)', fontWeight: 600, marginBottom: '0.25rem' }}>No exercises assigned</p>
               <p style={{ color: 'var(--text3)', fontSize: 13 }}>Contact your instructor to get access.</p>
             </div>

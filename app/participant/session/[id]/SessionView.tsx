@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import ResponseEditor from './ResponseEditor';
 import CodeEditor from './CodeEditor';
+import { AlertTriangle, Check, Circle } from 'lucide-react';
 
 interface QuestionStatus { question_index: number; has_draft: boolean; is_final: boolean; }
 interface SessionState {
@@ -25,7 +26,8 @@ function TimerDisplay({ remainingSeconds, warningLowTime }: { remainingSeconds: 
   const s = clamped % 60;
   return (
     <div className={`timer${warningLowTime ? ' warning' : ''}`}>
-      {warningLowTime && '⚠️ '}{String(m).padStart(2, '0')}:{String(s).padStart(2, '0')}
+      {warningLowTime && <AlertTriangle size={14} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />}
+      {String(m).padStart(2, '0')}:{String(s).padStart(2, '0')}
     </div>
   );
 }
@@ -60,10 +62,10 @@ function ProgressBar({ currentIndex, viewingIndex, questionCount, questionStatus
           );
         })}
       </div>
-      <div style={{ fontSize: 11, color: 'var(--text3)', display: 'flex', gap: 10 }}>
-        <span style={{ color: 'var(--accent)' }}>● current</span>
-        <span style={{ color: 'var(--orange)' }}>● draft</span>
-        <span style={{ color: 'var(--green)' }}>● final</span>
+      <div style={{ fontSize: 11, color: 'var(--text3)', display: 'flex', gap: 10, alignItems: 'center' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: 'var(--accent)' }}><Circle size={8} fill="currentColor" /> current</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: 'var(--orange)' }}><Circle size={8} fill="currentColor" /> draft</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: 'var(--green)' }}><Circle size={8} fill="currentColor" /> final</span>
       </div>
     </div>
   );

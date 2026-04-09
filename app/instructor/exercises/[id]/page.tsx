@@ -60,7 +60,7 @@ export default async function ExercisePage({ params }: Props) {
             <h1 className="page-title">{exercise.title}</h1>
             <p className="page-sub">
               <code style={{ background: 'var(--bg3)', padding: '2px 6px', borderRadius: 4, fontSize: 12 }}>{exercise.slug}</code>
-              {' · '}{exercise.question_count} question{exercise.question_count !== 1 ? 's' : ''}
+              {' · '}{exercise.question_count} question{exercise.question_count > 1 ? 's' : ''}
             </p>
           </div>
           <ExerciseManager
