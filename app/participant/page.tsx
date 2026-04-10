@@ -4,6 +4,9 @@ import { redirect } from 'next/navigation';
 import { sql } from '@/lib/db';
 import Link from 'next/link';
 import Navbar from '@/app/components/Navbar';
+import { InboxIcon } from 'lucide-react';
+
+export const dynamic = 'force-dynamic';
 
 interface Exercise {
   id: string;
@@ -12,8 +15,6 @@ interface Exercise {
   question_count: number;
 }
 
-import { InboxIcon } from 'lucide-react';
-
 export default async function ExerciseCataloguePage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect('/login');
@@ -21,7 +22,7 @@ export default async function ExerciseCataloguePage() {
   const userId = session.user.id;
   let exercises: Exercise[] = [];
   let fetchError = false;
-  let activeSessionIds = new Set<string>();
+  let sessionStatusMap = new Map<string, 'active' | 'completed'>();
 
   try {
     const rows = await sql`
@@ -36,12 +37,19 @@ export default async function ExerciseCataloguePage() {
     if (exercises.length > 0) {
       const ids = exercises.map((e) => e.id);
       const sessions = await sql`
-        SELECT exercise_id FROM sessions
+        SELECT exercise_id, closed_at FROM sessions
         WHERE user_id = ${userId}
           AND exercise_id = ANY(${ids}::uuid[])
-          AND closed_at IS NULL
       `;
-      activeSessionIds = new Set(sessions.map((s) => s.exercise_id as string));
+      // Map: exerciseId → 'active' | 'completed'
+      for (const s of sessions) {
+        const eid = s.exercise_id as string;
+        if (s.closed_at) {
+          sessionStatusMap.set(eid, 'completed');
+        } else {
+          sessionStatusMap.set(eid, 'active');
+        }
+      }
     }
   } catch {
     fetchError = true;
@@ -80,9 +88,13 @@ export default async function ExerciseCataloguePage() {
                     {exercise.question_count} question{exercise.question_count !== 1 ? 's' : ''}
                   </div>
                 </div>
-                <Link href={`/participant/session/${exercise.id}`} className="btn btn-primary">
-                  {activeSessionIds.has(exercise.id) ? 'Continue →' : 'Start →'}
-                </Link>
+                {sessionStatusMap.get(exercise.id) === 'completed' ? (
+                  <span className="badge badge-green" style={{ fontSize: 11 }}>Completed</span>
+                ) : (
+                  <Link href={`/participant/session/${exercise.id}`} className="btn btn-primary">
+                    {sessionStatusMap.get(exercise.id) === 'active' ? 'Continue →' : 'Start →'}
+                  </Link>
+                )}
               </div>
             ))}
           </div>

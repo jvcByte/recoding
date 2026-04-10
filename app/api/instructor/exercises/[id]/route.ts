@@ -62,30 +62,31 @@ export async function PUT(
     'start_time' in body || 'end_time' in body || 'duration_limit' in body;
 
   if (hasTimingUpdate) {
-    // Persist timing on the exercise so new sessions inherit it
-    await sql`
-      UPDATE exercises
-      SET
-        start_time     = COALESCE(${('start_time'     in body ? body.start_time     : undefined) ?? null}, start_time),
-        end_time       = COALESCE(${('end_time'       in body ? body.end_time       : undefined) ?? null}, end_time),
-        duration_limit = COALESCE(${('duration_limit' in body ? body.duration_limit : undefined) ?? null}, duration_limit)
-      WHERE id = ${exerciseId}
-    `;
-
-    // Also push to all existing open sessions
+    // Update each field individually to avoid COALESCE type inference issues
     if ('start_time' in body) {
-      await sql`UPDATE sessions SET start_time = ${body.start_time ?? null} WHERE exercise_id = ${exerciseId} AND closed_at IS NULL`;
+      await sql`UPDATE exercises SET start_time = ${body.start_time ?? null}::timestamptz WHERE id = ${exerciseId}`;
+      await sql`UPDATE sessions SET start_time = ${body.start_time ?? null}::timestamptz WHERE exercise_id = ${exerciseId} AND closed_at IS NULL`;
     }
     if ('end_time' in body) {
-      await sql`UPDATE sessions SET end_time = ${body.end_time ?? null} WHERE exercise_id = ${exerciseId} AND closed_at IS NULL`;
+      await sql`UPDATE exercises SET end_time = ${body.end_time ?? null}::timestamptz WHERE id = ${exerciseId}`;
+      await sql`UPDATE sessions SET end_time = ${body.end_time ?? null}::timestamptz WHERE exercise_id = ${exerciseId} AND closed_at IS NULL`;
     }
     if ('duration_limit' in body) {
-      await sql`
-        UPDATE sessions
-        SET duration_limit = ${body.duration_limit ?? null},
-            started_at = CASE WHEN ${body.duration_limit ?? null} IS NOT NULL THEN now() ELSE started_at END
-        WHERE exercise_id = ${exerciseId} AND closed_at IS NULL
-      `;
+      await sql`UPDATE exercises SET duration_limit = ${body.duration_limit ?? null}::interval WHERE id = ${exerciseId}`;
+      if (body.duration_limit) {
+        // Setting a new limit — reset started_at so countdown begins now
+        await sql`
+          UPDATE sessions
+          SET duration_limit = ${body.duration_limit}::interval, started_at = now()
+          WHERE exercise_id = ${exerciseId} AND closed_at IS NULL
+        `;
+      } else {
+        // Clearing the limit
+        await sql`
+          UPDATE sessions SET duration_limit = NULL
+          WHERE exercise_id = ${exerciseId} AND closed_at IS NULL
+        `;
+      }
     }
   }
 

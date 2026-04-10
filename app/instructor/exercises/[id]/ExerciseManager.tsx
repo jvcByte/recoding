@@ -49,7 +49,7 @@ export default function ExerciseManager({ exercise: initial, sessions, assignedU
       setExercise(updated);
       toast.success('Saved');
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.name : 'Unknown error');
+      toast.error(e instanceof Error ? e.message : 'Unknown error');
     } finally {
       setSaving(false);
     }
