@@ -23,7 +23,7 @@ function LoginForm() {  const searchParams = useSearchParams();
     setLoading(false);
 
     if (!result || result.error) {
-      setError('Invalid username or password.');
+      setError(result?.error as string);
       return;
     }
 

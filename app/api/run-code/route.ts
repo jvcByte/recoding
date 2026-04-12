@@ -11,11 +11,16 @@ const RUNTIME_MAP: Record<string, { language: string; version: string }> = {
   typescript: { language: 'typescript', version: '5.0.3' },
 };
 
-// Pre-load banner file for stdin injection
+// Pre-load banner file once at startup
+let _bannerCache: string | null = null;
 function getBannerContent(): string {
+  if (_bannerCache !== null) return _bannerCache;
   try {
-    return readFileSync(path.join(process.cwd(), 'docs', 'banner_files', 'standard.txt'), 'utf-8');
-  } catch {
+    _bannerCache = readFileSync(path.join(process.cwd(), 'docs', 'banner_files', 'standard.txt'), 'utf-8');
+    console.log('[run-code] Banner loaded:', _bannerCache.split('\n').length, 'lines');
+    return _bannerCache;
+  } catch (err) {
+    console.error('[run-code] Failed to load banner:', (err as Error).message);
     return '';
   }
 }
@@ -47,6 +52,7 @@ export async function POST(req: NextRequest) {
   // For Go exercises, auto-inject the banner file as stdin if no stdin provided
   // This lets participants read banner data via os.Stdin instead of embedding it
   const effectiveStdin = stdin || (language === 'go' ? getBannerContent() : '');
+  console.log('[run-code] stdin length:', effectiveStdin.length, 'lines:', effectiveStdin.split('\n').length);
 
   if (!code || typeof code !== 'string') {
     return NextResponse.json({ error: 'code is required' }, { status: 400 });
