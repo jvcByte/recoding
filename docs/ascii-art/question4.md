@@ -1,29 +1,55 @@
-## Drill 5 — Handle the Empty String and `\n` Only Input
+## Drill 5 — Render a Multi-Character String
 
-Write logic (in `main` or a helper) that handles these exact cases from the spec:
+Using the `renderLine` function from Drill 4, render the string `"Hi"` and print all 8 rows.
 
-```bash
-go run . "" | cat -e
-# → no output at all
+**Requirements:**
+- Reuse `renderLine` — no changes needed to its logic
+- Each character's rows are concatenated horizontally
+- Print all 8 rows, one per line
 
-go run . "\n" | cat -e
-# → one blank line, then nothing
-$
-```
-
-**What you need to figure out:**
-- `""` → print nothing (not even a newline)
-- `"\n"` → splits into `["", ""]` → renders as a single blank line
-- `"\n\n"` → splits into `["", "", ""]` → renders as two blank lines
-
-Write a function:
-
+**Starter:**
 ```go
-func shouldPrintBlankLine(text string) bool
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+)
+
+func readBannerFromStdin() []string {
+	// TODO: implement (copy from Drill 1)
+	return nil
+}
+
+func buildCharMap(lines []string) map[rune][8]string {
+	// TODO: implement (copy from Drill 2)
+	return nil
+}
+
+func renderLine(text string, charMap map[rune][8]string) [8]string {
+	// TODO: implement (copy from Drill 4)
+	return [8]string{}
+}
+
+func main() {
+	lines := readBannerFromStdin()
+	charMap := buildCharMap(lines)
+	art := renderLine("Hi", charMap)
+	for _, row := range art {
+		fmt.Println(row)
+	}
+}
 ```
 
-That returns true when a segment is empty and should output a single newline instead of 8 rendered rows.
-
-**Test all three cases before moving on.**
-
----
+**Expected output (8 lines):**
+```
+ _   _   _  
+| | | | (_) 
+| |_| |  _  
+|  _  | | | 
+| | | | | | 
+|_| |_| |_| 
+            
+            
+```

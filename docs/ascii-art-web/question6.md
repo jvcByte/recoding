@@ -1,33 +1,35 @@
-## Drill 7 — Serve Static Files (Optional CSS)
+## Drill 7 — HTTP Status Text
 
-Create a `static/` directory and add a basic `style.css`:
-
-```css
-body { font-family: monospace; padding: 2rem; }
-pre  { background: #f4f4f4; padding: 1rem; overflow-x: auto; }
-```
-
-Register a static file server in Go:
-
-```go
-fs := http.FileServer(http.Dir("static"))
-http.Handle("/static/", http.StripPrefix("/static/", fs))
-```
-
-Link it in your HTML:
-```html
-<link rel="stylesheet" href="/static/style.css">
-```
+Write a function `statusText(code int) string` that returns the standard HTTP reason phrase for a given status code.
 
 **Requirements:**
-- `GET /static/style.css` returns `200` with correct `Content-Type: text/css`
-- `GET /static/nonexistent.css` returns `404`
-- Static server must not expose files outside the `static/` directory
+- Return the correct reason phrase for: 200, 400, 404, 405, 500
+- Use the standard Go `net/http` package — do not hardcode strings
 
-**Test with:**
-```bash
-curl -i http://localhost:8080/static/style.css
-curl -i http://localhost:8080/static/../main.go   # must NOT serve your source
+**Starter:**
+```go
+package main
+
+import "fmt"
+
+func statusText(code int) string {
+	// TODO: implement
+	return ""
+}
+
+func main() {
+	codes := []int{200, 400, 404, 405, 500}
+	for _, code := range codes {
+		fmt.Printf("%d %s\n", code, statusText(code))
+	}
+}
 ```
 
----
+**Expected output:**
+```
+200 OK
+400 Bad Request
+404 Not Found
+405 Method Not Allowed
+500 Internal Server Error
+```

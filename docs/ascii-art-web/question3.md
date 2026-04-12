@@ -1,44 +1,53 @@
-## Drill 4 — Handle POST `/ascii-art`
+## Drill 4 — Build HTML Response
 
-Write the POST handler:
+Write a function `buildResponse(art string) string` that wraps rendered ASCII art in an HTML `<pre>` tag.
 
+**Requirements:**
+- Wrap the art string in `<pre>` and `</pre>` tags
+- Do not add extra whitespace or newlines around the tags
+- An empty art string should still produce `<pre></pre>`
+
+**Starter:**
 ```go
-func handleAsciiArt(w http.ResponseWriter, r *http.Request) {
-    // return 405 if method != POST
-    // parse form data
-    // extract "text" and "banner" fields
-    // validate both fields
-    // return 400 if either is missing or invalid
-    // load the banner file
-    // return 404 if banner file not found
-    // render the ASCII art
-    // return 500 if rendering fails
-    // display result
+package main
+
+import "fmt"
+
+func buildResponse(art string) string {
+	// TODO: implement
+	return ""
+}
+
+func main() {
+	cases := []struct {
+		art  string
+		want string
+	}{
+		{"hello art", "<pre>hello art</pre>"},
+		{"", "<pre></pre>"},
+		{"line1\nline2", "<pre>line1\nline2</pre>"},
+	}
+
+	allPass := true
+	for _, c := range cases {
+		got := buildResponse(c.art)
+		status := "OK"
+		if got != c.want {
+			status = "FAIL"
+			allPass = false
+		}
+		fmt.Printf("%s: buildResponse(%q) = %q\n", status, c.art, got)
+	}
+	if allPass {
+		fmt.Println("all pass")
+	}
 }
 ```
 
-**Status code rules — apply exactly:**
-| Situation | Code |
-|---|---|
-| Method is not POST | 405 |
-| `text` field missing or empty | 400 |
-| `banner` field not one of three valid values | 400 |
-| Banner `.txt` file not found on disk | 404 |
-| Template missing or execution fails | 500 |
-| Everything succeeds | 200 |
-
-**Test with:**
-```bash
-curl -i -X POST http://localhost:8080/ascii-art \
-  -d "text=hello&banner=standard"
-
-curl -i -X POST http://localhost:8080/ascii-art \
-  -d "text=&banner=standard"          # → 400
-
-curl -i -X POST http://localhost:8080/ascii-art \
-  -d "text=hello&banner=banana"       # → 400
-
-curl -i -X GET http://localhost:8080/ascii-art  # → 405
+**Expected output:**
 ```
-
----
+OK: buildResponse("hello art") = "<pre>hello art</pre>"
+OK: buildResponse("") = "<pre></pre>"
+OK: buildResponse("line1\nline2") = "<pre>line1\nline2</pre>"
+all pass
+```

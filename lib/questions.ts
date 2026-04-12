@@ -39,6 +39,42 @@ func main() {
 }
 `;
 
+// Load banner file content — passed via stdin to avoid large constants
+function getBannerStarter(): string {
+  return `package main
+
+import (
+\t"bufio"
+\t"fmt"
+\t"os"
+\t"strings"
+)
+
+// readBannerFromStdin reads the banner file lines from stdin.
+// The platform pre-loads the banner content into stdin for you.
+func readBannerFromStdin() []string {
+\tvar lines []string
+\tscanner := bufio.NewScanner(os.Stdin)
+\tfor scanner.Scan() {
+\t\tlines = append(lines, scanner.Text())
+\t}
+\treturn lines
+}
+
+func main() {
+\tlines := readBannerFromStdin()
+\tfmt.Println("Banner lines:", len(lines))
+\t_ = strings.Split // strings imported for your use
+}
+`;
+}
+
+/** Extract the first ```go ... ``` code block from markdown content */
+function extractStarterFromMarkdown(content: string): string | null {
+  const match = content.match(/```go\n([\s\S]*?)```/);
+  return match ? match[1] : null;
+}
+
 export function loadExercise(slug: string): ExerciseContent {
   const dir = resolveExerciseDir(slug);
   const isCodeExercise = CODE_EXERCISE_SLUGS.has(slug);
@@ -67,11 +103,20 @@ export function loadExercise(slug: string): ExerciseContent {
     const raw = readFileSync(filePath, 'utf-8');
     const { data, content } = matter(raw);
 
-    // Frontmatter can override type/language/starter per question
     const type: 'written' | 'code' =
       data.type ?? (isCodeExercise ? 'code' : 'written');
     const language: string = data.language ?? (isCodeExercise ? 'go' : 'text');
-    const starter: string = data.starter ?? (type === 'code' ? GO_STARTER : '');
+
+    // For code exercises: extract starter from the question's code block,
+    // fall back to frontmatter starter, then generic defaults
+    let starter: string;
+    if (data.starter) {
+      starter = data.starter;
+    } else if (type === 'code') {
+      starter = extractStarterFromMarkdown(content) ?? GO_STARTER;
+    } else {
+      starter = '';
+    }
 
     return { index: i, text: content.trim(), type, language, starter };
   });

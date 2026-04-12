@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { readFileSync } from 'fs';
+import path from 'path';
 
-const PISTON_URL = process.env.PISTON_API_URL ?? 'https://emkc.org/api/v2/piston';
-
-// Language → Piston runtime mapping
 const RUNTIME_MAP: Record<string, { language: string; version: string }> = {
   go:         { language: 'go',         version: '1.16.2' },
   python:     { language: 'python',     version: '3.10.0' },
@@ -12,10 +11,28 @@ const RUNTIME_MAP: Record<string, { language: string; version: string }> = {
   typescript: { language: 'typescript', version: '5.0.3' },
 };
 
+// Pre-load banner file for stdin injection
+function getBannerContent(): string {
+  try {
+    return readFileSync(path.join(process.cwd(), 'docs', 'banner_files', 'standard.txt'), 'utf-8');
+  } catch {
+    return '';
+  }
+}
+
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const PISTON_URL = process.env.PISTON_API_URL;
+  console.log('[run-code] PISTON_URL:', PISTON_URL);
+
+  if (!PISTON_URL) {
+    return NextResponse.json({
+      error: 'Code execution is not configured. Set PISTON_API_URL in your environment to a self-hosted Piston instance.',
+    }, { status: 503 });
   }
 
   let body: { code: string; language: string; stdin?: string };
@@ -27,6 +44,10 @@ export async function POST(req: NextRequest) {
 
   const { code, language, stdin = '' } = body;
 
+  // For Go exercises, auto-inject the banner file as stdin if no stdin provided
+  // This lets participants read banner data via os.Stdin instead of embedding it
+  const effectiveStdin = stdin || (language === 'go' ? getBannerContent() : '');
+
   if (!code || typeof code !== 'string') {
     return NextResponse.json({ error: 'code is required' }, { status: 400 });
   }
@@ -36,7 +57,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Unsupported language: ${language}` }, { status: 400 });
   }
 
-  // Enforce a reasonable code size limit
   if (Buffer.byteLength(code, 'utf8') > 64 * 1024) {
     return NextResponse.json({ error: 'Code exceeds 64KB limit' }, { status: 413 });
   }
@@ -49,11 +69,11 @@ export async function POST(req: NextRequest) {
         language: runtime.language,
         version: runtime.version,
         files: [{ name: `main.${language === 'go' ? 'go' : language}`, content: code }],
-        stdin,
-        run_timeout: 10000,  // 10s max execution
-        compile_timeout: 15000,
+        stdin: effectiveStdin,
       }),
     });
+
+    console.log("Piston Res: ", pistonRes)
 
     if (!pistonRes.ok) {
       const text = await pistonRes.text();
@@ -65,6 +85,8 @@ export async function POST(req: NextRequest) {
       compile?: { stdout: string; stderr: string; code: number | null };
       run:      { stdout: string; stderr: string; code: number | null };
     };
+
+    console.log("Result: ", result);
 
     return NextResponse.json({
       compile_output: result.compile?.stderr ?? '',

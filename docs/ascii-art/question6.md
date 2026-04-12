@@ -1,31 +1,42 @@
-## Drill 7 — Support Multiple Banners
+## Drill 7 — Resolve Banner Filename
 
-Extend your program to accept an optional second argument — the banner name:
+Write a function `resolveBannerFile(name string) (string, error)` that maps a banner name to its filename.
 
-```bash
-go run . "Hello" standard
-go run . "Hello" shadow
-go run . "Hello" thinkertoy
-```
+**Requirements:**
+- An empty string defaults to `"standard"`
+- Valid names: `"standard"`, `"shadow"`, `"thinkertoy"`
+- Return `name + ".txt"` for valid names
+- Return an error for any unrecognized name
 
-Write a function:
-
+**Starter:**
 ```go
-func resolveBannerFile(name string) (string, error)
+package main
+
+import "fmt"
+
+func resolveBannerFile(name string) (string, error) {
+	// TODO: implement
+	return "", nil
+}
+
+func main() {
+	cases := []string{"standard", "shadow", "thinkertoy", "banana", ""}
+	for _, name := range cases {
+		file, err := resolveBannerFile(name)
+		if err != nil {
+			fmt.Printf("%q → error\n", name)
+		} else {
+			fmt.Printf("%q → %s\n", name, file)
+		}
+	}
+}
 ```
 
-- Accepts `"standard"`, `"shadow"`, or `"thinkertoy"`
-- Returns the corresponding filename (e.g., `"standard.txt"`)
-- Returns an error for any unrecognized name
-- Defaults to `"standard"` if no banner argument is provided
-
-**Test cases:**
+**Expected output:**
 ```
-"standard"   → "standard.txt", nil
-"shadow"     → "shadow.txt", nil
-"thinkertoy" → "thinkertoy.txt", nil
-"banana"     → "", error
-""           → "standard.txt", nil  ← default
+"standard" → standard.txt
+"shadow" → shadow.txt
+"thinkertoy" → thinkertoy.txt
+"banana" → error
+"" → standard.txt
 ```
-
----

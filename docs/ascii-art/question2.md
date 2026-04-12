@@ -1,24 +1,49 @@
-## Drill 3 — Handle `\n` in Input
+## Drill 3 — Split Input on Literal `\n`
 
-Write a Go function:
+Write a function `splitInput(input string) []string` that splits a string on the two-character sequence `\n` (backslash + n), not a real newline byte.
 
+**Requirements:**
+- Split on the literal two-character string `\n` (not a newline character)
+- Return all segments including empty ones
+
+**Starter:**
 ```go
-func splitInput(input string) []string
+package main
+
+import "fmt"
+
+func splitInput(input string) []string {
+	// TODO: implement
+	return nil
+}
+
+func main() {
+	cases := []struct {
+		input    string
+		expected int
+	}{
+		{`Hello`, 1},
+		{`Hello\nThere`, 2},
+		{`Hello\n\nThere`, 3},
+		{`\n`, 2},
+		{``, 1},
+	}
+
+	allPass := true
+	for _, c := range cases {
+		got := splitInput(c.input)
+		if len(got) != c.expected {
+			fmt.Printf("FAIL: splitInput(%q) = %d segments, want %d\n", c.input, len(got), c.expected)
+			allPass = false
+		}
+	}
+	if allPass {
+		fmt.Println("OK")
+	}
+}
 ```
 
-- Takes the raw argument string (e.g., `"Hello\nThere"`)
-- Splits on literal `\n` (two characters: backslash + n) — **not** a real newline
-- Returns a slice of strings, one per line to render
-
-**Test cases:**
+**Expected output:**
 ```
-"Hello"          → ["Hello"]
-"Hello\nThere"   → ["Hello", "There"]
-"Hello\n\nThere" → ["Hello", "", "There"]
-"\n"             → ["", ""]
-""               → [""]
+OK
 ```
-
-**Critical distinction:** the input `"Hello\nThere"` arrives as a command-line argument — the `\n` is two characters (`\` and `n`), not a real newline byte. Your function must split on the two-character sequence `\n`, not `"\n"` the escape.
-
----

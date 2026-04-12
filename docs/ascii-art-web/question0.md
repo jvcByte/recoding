@@ -1,30 +1,60 @@
-## Drill 1 — Minimal HTTP Server
+## Drill 1 — Route Dispatch
 
-Write a Go program that starts an HTTP server on port 8080 and responds to `GET /` with a plain text `"OK"`.
+Write a function `dispatch(method, path string) int` that returns the correct HTTP status code based on the request method and path — without starting a real server.
 
+**Requirements:**
+- `GET /` → 200
+- `POST /ascii-art` → 200
+- Any other method on a known path → 405
+- Any unknown path → 404
+
+**Starter:**
 ```go
+package main
+
+import "fmt"
+
+func dispatch(method, path string) int {
+	// TODO: implement
+	return 0
+}
+
 func main() {
-    http.HandleFunc("/", handleIndex)
-    fmt.Println("Server running at http://localhost:8080")
-    log.Fatal(http.ListenAndServe(":8080", nil))
+	cases := []struct {
+		method, path string
+		want         int
+	}{
+		{"GET", "/", 200},
+		{"POST", "/", 405},
+		{"GET", "/about", 404},
+		{"POST", "/ascii-art", 200},
+		{"GET", "/ascii-art", 405},
+		{"DELETE", "/ascii-art", 405},
+	}
+
+	allPass := true
+	for _, c := range cases {
+		got := dispatch(c.method, c.path)
+		status := "OK"
+		if got != c.want {
+			status = "FAIL"
+			allPass = false
+		}
+		fmt.Printf("%s: dispatch(%q, %q) = %d\n", status, c.method, c.path, got)
+	}
+	if allPass {
+		fmt.Println("all pass")
+	}
 }
 ```
 
-**Requirements:**
-- Server must start without errors
-- `GET /` returns status `200 OK`
-- Any other path returns status `404 Not Found` — not Go's default 404, your own
-- Server must not crash on any request
-
-**Test with:**
-```bash
-curl -i http://localhost:8080/
-curl -i http://localhost:8080/nonexistent
+**Expected output:**
 ```
-
-**Confirm:**
-- `200` on `/`
-- `404` on anything else
-- Server keeps running after both requests
-
----
+OK: dispatch("GET", "/") = 200
+OK: dispatch("POST", "/") = 405
+OK: dispatch("GET", "/about") = 404
+OK: dispatch("POST", "/ascii-art") = 200
+OK: dispatch("GET", "/ascii-art") = 405
+OK: dispatch("DELETE", "/ascii-art") = 405
+all pass
+```

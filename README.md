@@ -1,54 +1,99 @@
-# Recoding Exercise Platform
+# Recoding — Exercise Platform
 
-A web application for running controlled, monitored recoding exercises. Participants complete scenario-based questions in a timed session while the platform captures anti-cheat signals (paste events, tab focus loss, keystroke patterns) for instructor review.
+> A controlled environment for running timed coding and writing exercises with live anti-cheat monitoring.
 
-## Stack
+---
 
-- **Framework**: Next.js 14 (App Router, TypeScript)
-- **Database**: PostgreSQL via [Neon](https://neon.tech) — `@neondatabase/serverless`
-- **Auth**: NextAuth.js v4 with credentials provider + bcrypt
-- **Real-time**: Server-Sent Events (SSE)
-- **Deployment**: Vercel
+## What is this?
 
-## Getting Started
+Imagine a classroom, but on a computer. The teacher (instructor) gives students (participants) coding or writing exercises to complete. Students type their answers in a special editor on the website. The teacher can watch what everyone is doing in real time — if someone copies and pastes code, the teacher sees it immediately.
 
-### 1. Install dependencies
+When time runs out, everything is saved automatically. The teacher can then review each student's work, see exactly how they typed it, and leave notes.
+
+---
+
+## Who uses it?
+
+| Role | What they do |
+|------|-------------|
+| **Instructor** | Creates exercises, assigns them to students, sets time limits, monitors live activity, reviews submissions |
+| **Participant** | Logs in, sees their assigned exercises, answers questions in the editor, submits answers |
+
+---
+
+## Features
+
+- **Timed exercises** — set a start time, end time, or duration limit per exercise
+- **Written questions** — text editor with autosave every 25 seconds
+- **Coding drills** — Monaco code editor (same as VS Code) with Go execution via Piston
+- **Live monitor** — instructors see paste events, focus losses, and keystrokes in real time
+- **Anti-cheat** — paste detection, focus-loss tracking, edit event recording, typing replay
+- **Audit log** — every instructor action is logged with timestamp
+- **CSV export** — download all submissions for an exercise as a spreadsheet
+
+---
+
+## Tech stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 14 (App Router) |
+| Database | PostgreSQL (local or Neon) |
+| Auth | NextAuth.js (credentials) |
+| Editor | Monaco Editor (`@monaco-editor/react`) |
+| Code runner | Piston (self-hosted Docker) |
+| UI | Custom dark theme, Lucide icons, Sonner toasts |
+
+---
+
+## Getting started
+
+### 1. Prerequisites
+
+- Node.js 18+
+- PostgreSQL running locally (or a Neon connection string)
+- Docker (for the Go code runner)
+
+### 2. Install dependencies
 
 ```bash
 npm install
 ```
 
-### 2. Set environment variables
+### 3. Configure environment
 
-Copy the example file and fill in your values:
+Copy `.env.example` to `.env.local` and fill in:
 
 ```bash
 cp .env.example .env.local
 ```
 
-| Variable | Description |
-|---|---|
-| `DATABASE_URL` | Neon PostgreSQL connection string (from your Neon dashboard) |
-| `NEXTAUTH_SECRET` | Random secret for JWT signing — generate with `openssl rand -base64 32` |
-| `NEXTAUTH_URL` | Base URL of the app, e.g. `http://localhost:3000` |
+```env
+DATABASE_URL=postgres://user:password@localhost:5432/recoding
+NEXTAUTH_SECRET=<generate with: openssl rand -base64 32>
+NEXTAUTH_URL=http://localhost:3000
 
-### 3. Set up the database
-
-Run the schema against your Neon database:
-
-```bash
-psql $DATABASE_URL -f schema.sql
+# Optional — required for coding drills
+PISTON_API_URL=http://localhost:2000/api/v2
 ```
 
-### 4. Seed exercises
+### 4. Set up the database
 
 ```bash
-npx tsx scripts/seed.ts
+npm run migrate
 ```
 
-This inserts all 11 exercise slugs (`prompt-basics`, `prompt-patterns`, `ai-ethics`, `debug-control`, `ethical-ai`, `reasoning-flow`, `role-prompt`, `tool-prompts`, `go-reloaded`, `ascii-art`, `ascii-art-web`) with `enabled = false`.
+### 5. Seed exercises and default users
 
-### 5. Run the dev server
+```bash
+npm run seed
+```
+
+Default accounts created:
+- `instructor` / `instructor123`
+- `participant` / `participant123`
+
+### 6. Start the dev server
 
 ```bash
 npm run dev
@@ -56,49 +101,87 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Project Structure
+---
+
+## Code execution (optional)
+
+Coding drills require a self-hosted [Piston](https://github.com/engineer-man/piston) instance.
+
+```bash
+# Start Piston
+docker run -d --name piston_api --privileged -p 2000:2000 \
+  -e PISTON_OUTPUT_MAX_SIZE=65536 \
+  ghcr.io/engineer-man/piston
+
+# Install Go runtime
+curl -X POST http://localhost:2000/api/v2/packages \
+  -H "Content-Type: application/json" \
+  -d '{"language":"go","version":"1.16.2"}'
+```
+
+Then set `PISTON_API_URL=http://localhost:2000/api/v2` in `.env.local` and restart the dev server.
+
+---
+
+## Available scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server |
+| `npm run build` | Build for production |
+| `npm run migrate` | Apply pending database migrations |
+| `npm run migrate:fresh` | Drop all tables, re-run migrations, seed |
+| `npm run seed` | Seed exercises and default users |
+| `npm run cleanup` | Delete autosave history older than 30 days |
+| `npm run reset-password <username> <password>` | Reset a user's password |
+
+---
+
+## Project structure
 
 ```
 app/
-  api/                        # Route Handlers (backend)
-    auth/[...nextauth]/       # NextAuth credentials provider
-    exercises/                # Participant exercise + session APIs
-    submissions/              # Autosave, final submit, restore
-    events/                   # Anti-cheat event logging + SSE stream
-    instructor/               # Instructor management APIs
-  participant/                # Participant UI pages
-  instructor/                 # Instructor UI pages
-  login/                      # Login page
+  api/           — API route handlers
+  instructor/    — Instructor dashboard pages
+  participant/   — Participant session pages
+  components/    — Shared UI components
+docs/
+  ascii-art/     — ASCII art coding drills
+  ascii-art-web/ — ASCII art web coding drills
+  go-reloaded/   — Go-reloaded written questions
+  prompt-piscine/— Prompt engineering written questions
+  banner_files/  — standard.txt, shadow.txt, thinkertoy.txt
 lib/
-  db.ts                       # Neon SQL client
-  questions.ts                # Loads question files from docs/
-  flagging.ts                 # Auto-flagging logic
-middleware.ts                 # RBAC enforcement
-schema.sql                    # Database schema
-scripts/seed.ts               # Exercise seed script
-docs/                         # Exercise question files
+  auth.ts        — NextAuth configuration
+  db.ts          — PostgreSQL connection pool
+  flagging.ts    — Anti-cheat flag evaluation
+  questions.ts   — Exercise content loader
+  audit.ts       — Audit log helper
+  rateLimit.ts   — Login rate limiter
+migrations/      — SQL migration files
+scripts/         — CLI utilities (migrate, seed, cleanup)
 ```
 
-## Roles
+---
 
-| Role | Access |
-|---|---|
-| `participant` | `/participant/*` — exercise catalogue, timed sessions |
-| `instructor` | `/instructor/*` — exercise management, submission review, live monitor |
+## Exercises
 
-## Anti-Cheat Features
+| Slug | Type | Questions | Description |
+|------|------|-----------|-------------|
+| `ascii-art` | Code (Go) | 11 | Build an ASCII art renderer from scratch |
+| `ascii-art-web` | Code (Go) | 12 | Serve ASCII art over HTTP |
+| `go-reloaded` | Written | 15 | Reflect on building a text transformation tool |
+| `prompt-basics` | Written | 12 | Prompt engineering fundamentals |
+| `prompt-patterns` | Written | 12 | Advanced prompting patterns |
+| `ai-ethics` | Written | 12 | AI ethics scenarios |
+| `debug-control` | Written | 12 | Debugging mindset |
+| `ethical-ai` | Written | 12 | Ethical AI in practice |
+| `reasoning-flow` | Written | 15 | Reasoning and flow |
+| `role-prompt` | Written | 15 | Role-based prompting |
+| `tool-prompts` | Written | 15 | Tool-use prompting |
 
-- **Paste detection** — logs every paste event with character count and timestamp
-- **Tab/window focus monitoring** — records focus-loss duration; flags submissions exceeding the threshold
-- **Keystroke capture** — records insert/delete edit events (no raw characters); flags submissions with fewer than 10 edits for responses over 200 characters
-- **Typing replay** — instructors can replay the edit event sequence to see how a response was constructed
+---
 
-## Instructor Tools
+## License
 
-- Enable/disable exercises and configure session timing
-- Assign participants to exercises
-- View all submissions with flag indicators
-- Full submission detail: response text, autosave history, paste events, focus events, typing replay
-- Add review notes per submission
-- Export submissions as CSV or JSON
-- Live monitor via SSE stream showing real-time anti-cheat events
+MIT

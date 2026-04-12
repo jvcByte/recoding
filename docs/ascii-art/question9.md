@@ -1,23 +1,57 @@
-## Drill 10 — Edge Case Gauntlet
+## Drill 10 — Full Pipeline: Render "Hello"
 
-Write a test file `edge_test.go` covering:
+Wire all the pieces together to render the string `"Hello"` and print all 8 rows.
 
+**Requirements:**
+- Read the banner from stdin with `readBannerFromStdin`
+- Build the character map with `buildCharMap`
+- Split the input on literal `\n` with `splitInput`
+- Render each non-empty segment with `renderLine`
+- Print the 8 rows of the result
+
+**Starter:**
 ```go
-func TestEmptyString(t *testing.T)         // go run . ""  → no output
-func TestNewlineOnly(t *testing.T)         // go run . "\n" → one blank line
-func TestDoubleNewline(t *testing.T)       // go run . "\n\n" → two blank lines
-func TestNewlineAtEnd(t *testing.T)        // go run . "Hello\n" → render Hello then blank line
-func TestSingleChar(t *testing.T)          // go run . "A"
-func TestAllPrintableASCII(t *testing.T)   // render every character from ' ' to '~'
-func TestUnknownBanner(t *testing.T)       // go run . "Hi" banana → error, not crash
-func TestInvalidCharacter(t *testing.T)    // input with é or \t → error
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+)
+
+func readBannerFromStdin() []string {
+	// TODO: implement (copy from Drill 1)
+	return nil
+}
+
+func buildCharMap(lines []string) map[rune][8]string {
+	// TODO: implement (copy from Drill 2)
+	return nil
+}
+
+func renderLine(text string, charMap map[rune][8]string) [8]string {
+	// TODO: implement (copy from Drill 4)
+	return [8]string{}
+}
+
+func main() {
+	lines := readBannerFromStdin()
+	charMap := buildCharMap(lines)
+	art := renderLine("Hello", charMap)
+	for _, row := range art {
+		fmt.Println(row)
+	}
+}
 ```
 
-Run with:
-```bash
-go test ./...
+**Expected output (8 lines):**
 ```
-
-All tests must pass before you consider the project complete.
-
----
+ _   _          _   _          
+| | | |   ___  | | | |   ___   
+| |_| |  / _ \ | | | |  / _ \  
+|  _  | |  __/ | | | | | (_) | 
+|_| |_|  \___| |_| |_|  \___/  
+                                
+                                
+                                
+```

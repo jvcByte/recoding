@@ -1,18 +1,50 @@
-## Drill 9 — Missing Template Returns 500
+## Drill 9 — Render Template to String
 
-Delete or rename `templates/index.html` temporarily. Confirm your server returns `500 Internal Server Error` instead of crashing.
+Write a function `renderTemplate(data PageData) (string, error)` that executes an HTML template into a string buffer and returns the result.
 
-Write a test:
+**Requirements:**
+- Use `html/template` to parse and execute the template
+- Render into a `strings.Builder`, not directly to a writer
+- Return the rendered string and any error
+- The template string is provided — do not change it
 
+**Starter:**
 ```go
-func TestMissingTemplateReturns500(t *testing.T) {
-    // temporarily point template path to a nonexistent file
-    // make a GET / request
-    // confirm status code is 500
-    // confirm server did not panic
+package main
+
+import "fmt"
+
+const tmpl = `<pre>{{.Result}}</pre>{{if .Error}}<p>{{.Error}}</p>{{end}}`
+
+type PageData struct {
+	Result string
+	Error  string
+}
+
+func renderTemplate(data PageData) (string, error) {
+	// TODO: implement
+	return "", nil
+}
+
+func main() {
+	out, err := renderTemplate(PageData{Result: "hello art"})
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	fmt.Println(out)
+
+	out2, err := renderTemplate(PageData{Error: "text is empty"})
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	fmt.Println(out2)
 }
 ```
 
-**Why this matters:** a missing template is a server-side failure, not a client error. It must be `500`, not `404`, and it must never crash the server.
-
----
+**Expected output:**
+```
+<pre>hello art</pre>
+<pre></pre><p>text is empty</p>
+```

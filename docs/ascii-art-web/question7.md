@@ -1,28 +1,43 @@
-## Drill 8 — HTTP Status Code Compliance Test
+## Drill 8 — PageData Struct
 
-Write a test file `server_test.go` using Go's `net/http/httptest` package:
+Define a `PageData` struct that holds the data your HTML template needs, then populate and print two instances to verify the fields work correctly.
 
+**Requirements:**
+- Fields: `Result string`, `Error string`, `Text string`, `Banner string`
+- The zero value must be safe to use (no panics)
+- A successful render populates `Result`; an error populates `Error`
+
+**Starter:**
 ```go
-func TestGetIndex(t *testing.T)               // GET / → 200
-func TestGetIndexWrongPath(t *testing.T)      // GET /about → 404
-func TestPostIndexNotAllowed(t *testing.T)    // POST / → 405
-func TestPostAsciiArtValid(t *testing.T)      // POST /ascii-art valid data → 200
-func TestPostAsciiArtEmptyText(t *testing.T)  // POST /ascii-art empty text → 400
-func TestPostAsciiArtBadBanner(t *testing.T)  // POST /ascii-art invalid banner → 400
-func TestGetAsciiArtNotAllowed(t *testing.T)  // GET /ascii-art → 405
-```
+package main
 
-**Use `httptest.NewRecorder()` to test handlers without starting a real server:**
+import "fmt"
 
-```go
-func TestGetIndex(t *testing.T) {
-    req := httptest.NewRequest(http.MethodGet, "/", nil)
-    w := httptest.NewRecorder()
-    handleIndex(w, req)
-    if w.Code != http.StatusOK {
-        t.Errorf("expected 200, got %d", w.Code)
-    }
+type PageData struct {
+	// TODO: define fields
+}
+
+func main() {
+	success := PageData{
+		// TODO: populate for a successful render of text="hello" with banner="standard"
+	}
+	fmt.Printf("Result=%q Error=%q Text=%q Banner=%q\n",
+		success.Result, success.Error, success.Text, success.Banner)
+
+	failure := PageData{
+		// TODO: populate for a validation error "text is empty"
+	}
+	fmt.Printf("Result=%q Error=%q Text=%q Banner=%q\n",
+		failure.Result, failure.Error, failure.Text, failure.Banner)
+
+	var zero PageData
+	fmt.Printf("zero Result=%q Error=%q\n", zero.Result, zero.Error)
 }
 ```
 
----
+**Expected output:**
+```
+Result="art goes here" Error="" Text="hello" Banner="standard"
+Result="" Error="text is empty" Text="" Banner="standard"
+zero Result="" Error=""
+```

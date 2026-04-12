@@ -1,39 +1,56 @@
-## Drill 10 — README.md
+## Drill 10 — Full Render Pipeline
 
-Create `README.md` in the project root with exactly these four sections, filled in with real content:
+Wire together the banner reader, character map builder, and renderer to process the string `"Hi"` — exactly as your POST handler would — and print the rendered output.
 
-```markdown
-# ASCII Art Web
+**Requirements:**
+- Read the banner from stdin with `readBannerFromStdin`
+- Build the character map with `buildCharMap`
+- Render `"Hi"` with `renderLine`
+- Print all 8 rows
 
-## Description
-A web-based ASCII art generator built in Go. Users can enter text and select
-a banner style to generate ASCII art rendered in the browser.
+**Starter:**
+```go
+package main
 
-## Authors
-- [Your name]
+import (
+	"bufio"
+	"fmt"
+	"os"
+)
 
-## Usage
-### How to run
-```bash
-git clone <repo>
-cd ascii-art-web
-go run .
-# Open http://localhost:8080 in your browser
+func readBannerFromStdin() []string {
+	// TODO: implement
+	return nil
+}
+
+func buildCharMap(lines []string) map[rune][8]string {
+	// TODO: implement
+	return nil
+}
+
+func renderLine(text string, charMap map[rune][8]string) [8]string {
+	// TODO: implement
+	return [8]string{}
+}
+
+func main() {
+	lines := readBannerFromStdin()
+	charMap := buildCharMap(lines)
+	art := renderLine("Hi", charMap)
+	for _, row := range art {
+		fmt.Println(row)
+	}
+}
 ```
 
-## Implementation Details: Algorithm
-1. User submits text and banner selection via HTML form (POST /ascii-art)
-2. Server validates input — rejects empty text, invalid banners, non-ASCII characters
-3. Server loads the selected banner file from disk
-4. Input is split on literal `\n` into segments
-5. Each segment is rendered by looking up each character's 8-line art from the banner map
-6. Rendered rows are joined and returned to the browser inside a `<pre>` tag
+**Expected output (8 lines):**
 ```
-
-**Requirements from the spec — all four sections must be present:**
-- Description
-- Authors
-- Usage: how to run
-- Implementation details: algorithm
-
----
+ _   _   _  
+| | | | (_) 
+| |_| |  _  
+|  _  | | | 
+| | | | | | 
+|_| |_| |_| 
+            
+            
+```

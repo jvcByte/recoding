@@ -1,21 +1,58 @@
-## Drill 9 — Numbers and Special Characters
+## Drill 9 — Render Digits and Special Characters
 
-Your banner already handles these — but write a focused test to verify it.
+Using `renderLine` from Drill 4, render the characters `'1'` and `'!'` individually and print the first row of each.
 
-Write a test file `render_test.go` that tests rendering of:
+**Requirements:**
+- Both `'1'` and `'!'` must be present in the character map
+- Their first rows must be non-empty and different from each other
+- Print each first row with a label
 
+**Starter:**
 ```go
-func TestNumbers(t *testing.T)        // "0123456789"
-func TestSpecialChars(t *testing.T)   // "{Hello There}" from the spec
-func TestSpace(t *testing.T)          // "Hello There" — space between words
-func TestMixedInput(t *testing.T)     // "1Hello 2There" from the spec
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+)
+
+func readBannerFromStdin() []string {
+	// TODO: implement (copy from Drill 1)
+	return nil
+}
+
+func buildCharMap(lines []string) map[rune][8]string {
+	// TODO: implement (copy from Drill 2)
+	return nil
+}
+
+func renderLine(text string, charMap map[rune][8]string) [8]string {
+	// TODO: implement (copy from Drill 4)
+	return [8]string{}
+}
+
+func main() {
+	lines := readBannerFromStdin()
+	charMap := buildCharMap(lines)
+
+	one := renderLine("1", charMap)
+	bang := renderLine("!", charMap)
+
+	fmt.Printf("'1' row0: %q\n", one[0])
+	fmt.Printf("'!' row0: %q\n", bang[0])
+
+	if one[0] != bang[0] {
+		fmt.Println("distinct: true")
+	} else {
+		fmt.Println("distinct: false")
+	}
+}
 ```
 
-For each test:
-- Load the standard banner
-- Render the string
-- Compare output line by line against the expected output from the spec
-
-**Do not hardcode expected output as one giant string.** Build it by rendering known characters and comparing row by row.
-
----
+**Expected output:**
+```
+'1' row0: " _  "
+'!' row0: " _ "
+distinct: true
+```

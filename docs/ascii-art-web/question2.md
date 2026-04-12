@@ -1,35 +1,62 @@
-## Drill 3 — Build the HTML Form
+## Drill 3 — Validate Input
 
-Extend `index.html` to include the three required UI elements:
-
-1. A `<textarea>` or `<input>` for text entry
-2. A way to select a banner — radio buttons, `<select>`, or similar
-3. A submit button that sends a `POST` to `/ascii-art`
-
-```html
-<form action="/ascii-art" method="POST">
-    <textarea name="text" placeholder="Enter text here..."></textarea>
-
-    <label>
-        <input type="radio" name="banner" value="standard" checked> Standard
-    </label>
-    <label>
-        <input type="radio" name="banner" value="shadow"> Shadow
-    </label>
-    <label>
-        <input type="radio" name="banner" value="thinkertoy"> Thinkertoy
-    </label>
-
-    <button type="submit">Generate</button>
-</form>
-```
+Write a function `validateInput(text, banner string) (string, int)` that returns an error message and HTTP status code for invalid input, or an empty string and 200 for valid input.
 
 **Requirements:**
-- The `name` attribute on inputs must match exactly what your Go handler will read
-- Form must use `method="POST"` and `action="/ascii-art"`
-- All three banners must be selectable
-- Default selection must be one of the three valid banners
+- Blank/whitespace-only `text` → `("text is empty", 400)`
+- Invalid banner name → `("invalid banner: <name>", 400)`
+- Valid banners: `"standard"`, `"shadow"`, `"thinkertoy"`
+- Non-ASCII character in text (outside 32–126) → `("non-ASCII character in input", 400)`
+- The literal two-character sequence `\n` in text is allowed
+- Valid input → `("", 200)`
 
-**Test by opening `http://localhost:8080` in a browser and confirming the form renders.**
+**Starter:**
+```go
+package main
 
----
+import "fmt"
+
+func validateInput(text, banner string) (string, int) {
+	// TODO: implement
+	return "", 200
+}
+
+func main() {
+	cases := []struct {
+		text, banner string
+		wantCode     int
+	}{
+		{"hello", "standard", 200},
+		{"", "standard", 400},
+		{"   ", "standard", 400},
+		{"hello", "banana", 400},
+		{"café", "standard", 400},
+		{`hello\nworld`, "shadow", 200},
+	}
+
+	allPass := true
+	for _, c := range cases {
+		msg, code := validateInput(c.text, c.banner)
+		status := "OK"
+		if code != c.wantCode {
+			status = "FAIL"
+			allPass = false
+		}
+		fmt.Printf("%s: validateInput(%q, %q) = %d %q\n", status, c.text, c.banner, code, msg)
+	}
+	if allPass {
+		fmt.Println("all pass")
+	}
+}
+```
+
+**Expected output:**
+```
+OK: validateInput("hello", "standard") = 200 ""
+OK: validateInput("", "standard") = 400 "text is empty"
+OK: validateInput("   ", "standard") = 400 "text is empty"
+OK: validateInput("hello", "banana") = 400 "invalid banner: banana"
+OK: validateInput("café", "standard") = 400 "non-ASCII character in input"
+OK: validateInput("hello\nworld", "shadow") = 200 ""
+all pass
+```

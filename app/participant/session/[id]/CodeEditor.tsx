@@ -1,10 +1,48 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import Editor, { OnMount } from '@monaco-editor/react';
+import Editor, { OnMount, loader } from '@monaco-editor/react';
 import type * as Monaco from 'monaco-editor';
 import { Play } from 'lucide-react';
 import { toast } from 'sonner';
+
+// Match the site's dark palette
+loader.init().then((monaco) => {
+  monaco.editor.defineTheme('recoding-dark', {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [
+      { token: 'comment',   foreground: '475569', fontStyle: 'italic' },
+      { token: 'keyword',   foreground: '818cf8' },
+      { token: 'string',    foreground: '6ee7b7' },
+      { token: 'number',    foreground: 'fcd34d' },
+      { token: 'type',      foreground: '7dd3fc' },
+      { token: 'function',  foreground: 'c4b5fd' },
+      { token: 'delimiter', foreground: '94a3b8' },
+    ],
+    colors: {
+      'editor.background':                      '#0c0f14',
+      'editor.foreground':                      '#e2e8f0',
+      'editor.lineHighlightBackground':         '#111520',
+      'editor.selectionBackground':             '#2d3a5280',
+      'editorLineNumber.foreground':            '#2d3a52',
+      'editorLineNumber.activeForeground':      '#6366f1',
+      'editorCursor.foreground':                '#6366f1',
+      'editorIndentGuide.background':           '#1a2235',
+      'editorWidget.background':                '#111520',
+      'editorWidget.border':                    '#1e2d45',
+      'editorSuggestWidget.background':         '#111520',
+      'editorSuggestWidget.border':             '#1e2d45',
+      'editorSuggestWidget.foreground':         '#e2e8f0',
+      'editorSuggestWidget.selectedBackground': '#1e2d45',
+      'editorSuggestWidget.highlightForeground':'#818cf8',
+      'editorHoverWidget.background':           '#111520',
+      'editorHoverWidget.border':               '#1e2d45',
+      'scrollbarSlider.background':             '#1e2d4560',
+      'scrollbarSlider.hoverBackground':        '#1e2d4590',
+    },
+  });
+});
 
 interface RunResult {
   stdout: string;
@@ -112,6 +150,7 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
   // ── Monaco mount — wire paste + change events ─────────────────────────────
   const handleEditorMount: OnMount = useCallback((editor) => {
     editorRef.current = editor;
+    editor.updateOptions({ suggest: { showIcons: true } });
 
     // Paste detection via Monaco's onDidPaste
     editor.onDidPaste((e) => {
@@ -261,7 +300,7 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
           value={code}
           onChange={(val) => { setCode(val ?? ''); setSaveStatus('idle'); }}
           onMount={handleEditorMount}
-          theme="vs-dark"
+          theme="recoding-dark"
           options={{
             fontSize: 14,
             minimap: { enabled: false },

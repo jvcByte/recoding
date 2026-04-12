@@ -1,40 +1,58 @@
-## Drill 2 — Serve an HTML Template
+## Drill 2 — Parse URL-Encoded Form Body
 
-Create a `templates/` directory in your project root. Inside it, create `index.html`:
+Write a function `parseFormBody(body string) map[string]string` that parses a URL-encoded form string (the body of a POST request) into a key-value map.
 
-```html
-<!DOCTYPE html>
-<html>
-<head><title>ASCII Art</title></head>
-<body>
-    <h1>ASCII Art Generator</h1>
-</body>
-</html>
-```
+**Requirements:**
+- Parse `key=value&key2=value2` format
+- URL-decode both keys and values (e.g. `+` → space, `%XX` → character)
+- Return a `map[string]string`
+- Return an empty map (not nil) on empty input
 
-Now write a handler that serves it using Go's `html/template` package:
-
+**Starter:**
 ```go
-func handleIndex(w http.ResponseWriter, r *http.Request) {
-    // only handle GET /
-    // return 404 if path != "/"
-    // return 405 if method != GET
-    // parse and execute the template
-    // return 500 if template fails
+package main
+
+import "fmt"
+
+func parseFormBody(body string) map[string]string {
+	// TODO: implement
+	return map[string]string{}
+}
+
+func main() {
+	cases := []struct {
+		body       string
+		wantText   string
+		wantBanner string
+	}{
+		{"text=hello&banner=standard", "hello", "standard"},
+		{"text=Hello+There&banner=shadow", "Hello There", "shadow"},
+		{"text=&banner=standard", "", "standard"},
+		{"banner=thinkertoy", "", "thinkertoy"},
+	}
+
+	allPass := true
+	for _, c := range cases {
+		m := parseFormBody(c.body)
+		if m["text"] == c.wantText && m["banner"] == c.wantBanner {
+			fmt.Printf("OK: text=%q banner=%q\n", m["text"], m["banner"])
+		} else {
+			fmt.Printf("FAIL: got text=%q banner=%q, want text=%q banner=%q\n",
+				m["text"], m["banner"], c.wantText, c.wantBanner)
+			allPass = false
+		}
+	}
+	if allPass {
+		fmt.Println("all pass")
+	}
 }
 ```
 
-**Requirements:**
-- Use `template.ParseFiles("templates/index.html")`
-- Return `404` if the template file is missing
-- Return `500` if template execution fails
-- Return `405 Method Not Allowed` if a non-GET request hits this route
-
-**Test with:**
-```bash
-curl -i http://localhost:8080/
-curl -i -X POST http://localhost:8080/
-curl -i http://localhost:8080/about
+**Expected output:**
 ```
-
----
+OK: text="hello" banner="standard"
+OK: text="Hello There" banner="shadow"
+OK: text="" banner="standard"
+OK: text="" banner="thinkertoy"
+all pass
+```

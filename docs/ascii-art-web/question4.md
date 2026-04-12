@@ -1,38 +1,58 @@
-## Drill 5 — Display Result in the Page
+## Drill 5 — Sanitize File Path
 
-Decide how you display the POST result — either:
+Write a function `sanitizePath(p string) string` that cleans a URL path to prevent directory traversal attacks.
 
-**Option A:** Redirect to a result page at `/ascii-art` after POST  
-**Option B:** Re-render the home page with the result appended
+**Requirements:**
+- Use `path.Clean` to normalize the path
+- The result must always start with `/`
+- Remove any `..` components
+- Remove duplicate slashes
 
-Whichever you choose, write a Go struct to pass data to your template:
-
+**Starter:**
 ```go
-type PageData struct {
-    Result string
-    Error  string
-    Text   string   // preserve user input
-    Banner string   // preserve banner selection
+package main
+
+import "fmt"
+
+func sanitizePath(p string) string {
+	// TODO: implement
+	return ""
+}
+
+func main() {
+	cases := []struct {
+		input string
+		want  string
+	}{
+		{"/static/style.css", "/static/style.css"},
+		{"/static/../main.go", "/main.go"},
+		{"/static/../../etc/passwd", "/etc/passwd"},
+		{"//double//slash", "/double/slash"},
+		{"/normal/path", "/normal/path"},
+	}
+
+	allPass := true
+	for _, c := range cases {
+		got := sanitizePath(c.input)
+		status := "OK"
+		if got != c.want {
+			status = "FAIL"
+			allPass = false
+		}
+		fmt.Printf("%s: sanitizePath(%q) = %q\n", status, c.input, got)
+	}
+	if allPass {
+		fmt.Println("all pass")
+	}
 }
 ```
 
-Update your template to display the result:
-
-```html
-{{if .Result}}
-<pre>{{.Result}}</pre>
-{{end}}
-
-{{if .Error}}
-<p class="error">{{.Error}}</p>
-{{end}}
+**Expected output:**
 ```
-
-**Requirements:**
-- The ASCII art must render in a `<pre>` tag to preserve spacing
-- If there is an error, show it clearly on the page
-- The user's input and banner selection must be preserved after submission (don't reset the form)
-
-**Test by submitting the form in a browser and confirming the output appears.**
-
----
+OK: sanitizePath("/static/style.css") = "/static/style.css"
+OK: sanitizePath("/static/../main.go") = "/main.go"
+OK: sanitizePath("/static/../../etc/passwd") = "/etc/passwd"
+OK: sanitizePath("//double//slash") = "/double/slash"
+OK: sanitizePath("/normal/path") = "/normal/path"
+all pass
+```
