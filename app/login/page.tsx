@@ -5,25 +5,31 @@ import { signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 
 import { Hexagon } from 'lucide-react';
+import { toast } from 'sonner';
 
 function LoginForm() {  const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl');
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError('');
     setLoading(true);
 
     const result = await signIn('credentials', { username, password, redirect: false });
     setLoading(false);
 
     if (!result || result.error) {
-      setError(result?.error as string);
+      toast.error(result?.error, {
+        style: { 
+          border: 'red 1px solid', 
+          background: '#ef44440f', 
+          color: 'white' 
+        },
+        className: 'my-toast',
+      })
       return;
     }
 
@@ -50,8 +56,6 @@ function LoginForm() {  const searchParams = useSearchParams();
           <div className="login-logo-title">Recoding Platform</div>
           <div className="login-logo-sub">Sign in to continue</div>
         </div>
-
-        {error && <div className="alert alert-error" style={{ marginBottom: '1.25rem' }}>{error}</div>}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div className="form-group">

@@ -15,15 +15,19 @@ interface Exercise {
 }
 
 async function getExercises(): Promise<Exercise[]> {
-  const rows = await sql`
-    SELECT e.id, e.slug, e.title, e.enabled, e.question_count,
-           COALESCE(json_agg(ea.user_id) FILTER (WHERE ea.user_id IS NOT NULL), '[]') AS assigned_user_ids
-    FROM exercises e
-    LEFT JOIN exercise_assignments ea ON ea.exercise_id = e.id
-    GROUP BY e.id, e.slug, e.title, e.enabled, e.question_count
-    ORDER BY e.title
-  `;
-  return rows as unknown as Exercise[];
+  try {
+    const rows = await sql`
+      SELECT e.id, e.slug, e.title, e.enabled, e.question_count,
+             COALESCE(json_agg(ea.user_id) FILTER (WHERE ea.user_id IS NOT NULL), '[]') AS assigned_user_ids
+      FROM exercises e
+      LEFT JOIN exercise_assignments ea ON ea.exercise_id = e.id
+      GROUP BY e.id, e.slug, e.title, e.enabled, e.question_count
+      ORDER BY e.title
+    `;
+    return rows as unknown as Exercise[];
+  } catch {
+    return [];
+  }
 }
 
 import { Radio } from 'lucide-react';
