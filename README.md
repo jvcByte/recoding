@@ -1,14 +1,14 @@
 # Recoding — Exercise Platform
 
-> A controlled environment for running timed coding and writing exercises with live anti-cheat monitoring.
+A controlled environment for running timed coding and writing exercises with live anti-cheat monitoring.
 
 ---
 
 ## What is this?
 
-Imagine a classroom, but on a computer. The teacher (instructor) gives students (participants) coding or writing exercises to complete. Students type their answers in a special editor on the website. The teacher can watch what everyone is doing in real time — if someone copies and pastes code, the teacher sees it immediately.
+Recoding is a web platform where instructors assign exercises to participants, set time limits, and monitor activity in real time. Participants complete written or coding exercises in a browser-based editor. Every keystroke, paste, and focus loss is recorded. When time runs out, everything is saved automatically.
 
-When time runs out, everything is saved automatically. The teacher can then review each student's work, see exactly how they typed it, and leave notes.
+Instructors can then review each submission, replay the typing history, and leave review notes.
 
 ---
 
@@ -16,20 +16,20 @@ When time runs out, everything is saved automatically. The teacher can then revi
 
 | Role | What they do |
 |------|-------------|
-| **Instructor** | Creates exercises, assigns them to students, sets time limits, monitors live activity, reviews submissions |
-| **Participant** | Logs in, sees their assigned exercises, answers questions in the editor, submits answers |
+| Instructor | Creates exercises, assigns participants, sets timing, monitors live activity, reviews submissions |
+| Participant | Logs in, sees assigned exercises, answers questions, submits answers |
 
 ---
 
 ## Features
 
-- **Timed exercises** — set a start time, end time, or duration limit per exercise
-- **Written questions** — text editor with autosave every 25 seconds
-- **Coding drills** — Monaco code editor (same as VS Code) with Go execution via Piston
-- **Live monitor** — instructors see paste events, focus losses, and keystrokes in real time
-- **Anti-cheat** — paste detection, focus-loss tracking, edit event recording, typing replay
-- **Audit log** — every instructor action is logged with timestamp
-- **CSV export** — download all submissions for an exercise as a spreadsheet
+- Timed exercises — start time, end time, or duration limit per exercise
+- Written questions — text editor with autosave every 25 seconds
+- Coding drills — Monaco editor (VS Code engine) with live Go execution
+- Live monitor — instructors see paste events, focus losses, and keystrokes in real time
+- Anti-cheat — paste detection, focus-loss tracking, edit event recording, typing replay
+- Audit log — every instructor action is logged with timestamp
+- CSV export — download all submissions for an exercise
 
 ---
 
@@ -38,11 +38,11 @@ When time runs out, everything is saved automatically. The teacher can then revi
 | Layer | Technology |
 |-------|-----------|
 | Framework | Next.js 14 (App Router) |
-| Database | PostgreSQL (local or Neon) |
-| Auth | NextAuth.js (credentials) |
-| Editor | Monaco Editor (`@monaco-editor/react`) |
-| Code runner | Piston (self-hosted Docker) |
-| UI | Custom dark theme, Lucide icons, Sonner toasts |
+| Database | PostgreSQL via Neon (serverless, HTTPS) |
+| Auth | NextAuth.js (credentials + JWT) |
+| Editor | Monaco Editor |
+| Code runner | Custom Go service ([code-runner](https://github.com/jvcByte/code-runner)) |
+| Deployment | Vercel (app) + Render (runner) + Neon (database) |
 
 ---
 
@@ -51,49 +51,45 @@ When time runs out, everything is saved automatically. The teacher can then revi
 ### 1. Prerequisites
 
 - Node.js 18+
-- PostgreSQL running locally (or a Neon connection string)
-- Docker (for the Go code runner)
+- A [Neon](https://neon.tech) PostgreSQL database
+- The [code-runner](https://github.com/jvcByte/code-runner) service deployed (see below)
 
-### 2. Install dependencies
+### 2. Clone with submodules
 
 ```bash
+git clone --recurse-submodules https://github.com/jvcByte/recoding.git
+cd recoding
 npm install
 ```
 
 ### 3. Configure environment
 
-Copy `.env.example` to `.env.local` and fill in:
-
 ```bash
 cp .env.example .env.local
 ```
 
-```env
-DATABASE_URL=postgres://user:password@localhost:5432/recoding
-NEXTAUTH_SECRET=<generate with: openssl rand -base64 32>
-NEXTAUTH_URL=http://localhost:3000
+Fill in `.env.local`:
 
-# Optional — required for coding drills
-PISTON_API_URL=http://localhost:2000/api/v2
+```env
+DATABASE_URL=postgresql://user:password@host-pooler.region.neon.tech/dbname?sslmode=require
+NEXTAUTH_SECRET=<openssl rand -base64 32>
+NEXTAUTH_URL=http://localhost:3000
+RUNNER_URL=https://your-runner.onrender.com
+RUNNER_API_KEY=<openssl rand -base64 32>
 ```
 
 ### 4. Set up the database
 
 ```bash
 npm run migrate
-```
-
-### 5. Seed exercises and default users
-
-```bash
 npm run seed
 ```
 
-Default accounts created:
+Default accounts:
 - `instructor` / `instructor123`
 - `participant` / `participant123`
 
-### 6. Start the dev server
+### 5. Start the dev server
 
 ```bash
 npm run dev
@@ -103,16 +99,18 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ---
 
-## Code execution
+## Code runner
 
-Coding drills require the custom Go runner deployed at [github.com/jvcByte/code-runner](https://github.com/jvcByte/code-runner).
+Coding drills require the [code-runner](https://github.com/jvcByte/code-runner) service — a lightweight Go HTTP server that compiles and runs participant code in a sandboxed temp directory.
 
-Deploy it to Render (free tier) then set:
-```env
-PISTON_API_URL=https://your-runner.onrender.com
-```
+It's included as a git submodule at `runner/`. Deploy it separately to Render (free tier):
 
-The runner accepts `POST /run` with `{ code, language, stdin }` and returns `{ stdout, stderr, exit_code, compile_output }`. The banner file (`standard.txt`) is automatically injected as stdin for Go exercises.
+1. Go to [render.com](https://render.com) → New → Web Service
+2. Connect `github.com/jvcByte/code-runner`
+3. Runtime: **Docker**
+4. Add environment variables:
+   - `RUNNER_API_KEY` — a random secret (must match `RUNNER_API_KEY` in the main app)
+5. Deploy, then set `RUNNER_URL=https://your-service.onrender.com` in the main app
 
 ---
 
@@ -139,20 +137,21 @@ app/
   participant/   — Participant session pages
   components/    — Shared UI components
 docs/
-  ascii-art/     — ASCII art coding drills
-  ascii-art-web/ — ASCII art web coding drills
-  go-reloaded/   — Go-reloaded written questions
+  ascii-art/     — ASCII art coding drills (11 questions)
+  ascii-art-web/ — ASCII art web coding drills (12 questions)
+  go-reloaded/   — Go-reloaded written questions (15 questions)
   prompt-piscine/— Prompt engineering written questions
   banner_files/  — standard.txt, shadow.txt, thinkertoy.txt
 lib/
   auth.ts        — NextAuth configuration
-  db.ts          — PostgreSQL connection pool
+  db.ts          — Neon serverless database client
   flagging.ts    — Anti-cheat flag evaluation
   questions.ts   — Exercise content loader
   audit.ts       — Audit log helper
   rateLimit.ts   — Login rate limiter
-migrations/      — SQL migration files
-scripts/         — CLI utilities (migrate, seed, cleanup)
+migrations/      — SQL migration files (versioned)
+runner/          — Go code runner (git submodule → jvcByte/code-runner)
+scripts/         — CLI utilities (migrate, seed, cleanup, reset-password)
 ```
 
 ---
