@@ -27,10 +27,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const RUNNER_URL = process.env.PISTON_API_URL;
+  const RUNNER_URL = process.env.RUNNER_URL;
   if (!RUNNER_URL) {
     return NextResponse.json({
-      error: 'Code execution is not configured. Set PISTON_API_URL in your environment.',
+      error: 'Code execution is not configured. Set RUNNER_URL in your environment.',
     }, { status: 503 });
   }
 
