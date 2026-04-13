@@ -2,8 +2,6 @@ services:
   - type: web
     name: recoding-runner
     runtime: docker
-    dockerfilePath: ./runner/Dockerfile
-    dockerContext: ./runner
     plan: free
     envVars:
       - key: PORT
