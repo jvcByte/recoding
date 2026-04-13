@@ -6,7 +6,6 @@ import path from 'path';
 
 const SUPPORTED_LANGUAGES = new Set(['go', 'python', 'javascript', 'typescript']);
 
-// Pre-load banner file once at startup
 let _bannerCache: string | null = null;
 function getBannerContent(): string {
   if (_bannerCache !== null) return _bannerCache;
@@ -28,10 +27,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const RUNNER_URL = process.env.PISTON_API_URL ?? process.env.RUNNER_URL;
+  const RUNNER_URL = process.env.PISTON_API_URL;
   if (!RUNNER_URL) {
     return NextResponse.json({
-      error: 'Code execution is not configured. Set RUNNER_URL in your environment.',
+      error: 'Code execution is not configured. Set PISTON_API_URL in your environment.',
     }, { status: 503 });
   }
 
@@ -57,26 +56,11 @@ export async function POST(req: NextRequest) {
   // Auto-inject banner as stdin for Go exercises if no stdin provided
   const effectiveStdin = stdin || (language === 'go' ? getBannerContent() : '');
 
-  // Detect runner type from URL — custom runner uses /run, Piston uses /execute
-  const isPiston = RUNNER_URL.includes('piston') || RUNNER_URL.includes('emkc');
-  const endpoint = isPiston ? `${RUNNER_URL}/execute` : `${RUNNER_URL}/run`;
-
-  const pistonPayload = isPiston ? {
-    language,
-    version: '1.16.2',
-    files: [{ name: `main.go`, content: code }],
-    stdin: effectiveStdin,
-  } : {
-    code,
-    language,
-    stdin: effectiveStdin,
-  };
-
   try {
-    const res = await fetch(endpoint, {
+    const res = await fetch(`${RUNNER_URL}/run`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(pistonPayload),
+      body: JSON.stringify({ code, language, stdin: effectiveStdin }),
     });
 
     if (!res.ok) {
@@ -85,28 +69,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Execution service unavailable' }, { status: 502 });
     }
 
-    const result = await res.json() as Record<string, unknown>;
+    const result = await res.json() as {
+      stdout: string;
+      stderr: string;
+      exit_code: number;
+      compile_output: string;
+    };
 
-    // Normalise response — handle both Piston and custom runner formats
-    if (isPiston) {
-      const piston = result as {
-        compile?: { stderr: string };
-        run: { stdout: string; stderr: string; code: number | null };
-      };
-      return NextResponse.json({
-        compile_output: piston.compile?.stderr ?? '',
-        stdout: piston.run.stdout,
-        stderr: piston.run.stderr,
-        exit_code: piston.run.code,
-      });
-    } else {
-      return NextResponse.json({
-        compile_output: (result.compile_output as string) ?? '',
-        stdout: (result.stdout as string) ?? '',
-        stderr: (result.stderr as string) ?? '',
-        exit_code: (result.exit_code as number) ?? 0,
-      });
-    }
+    return NextResponse.json(result);
   } catch (err) {
     console.error('[run-code] fetch error:', (err as Error).message);
     return NextResponse.json({ error: 'Execution service unavailable' }, { status: 502 });

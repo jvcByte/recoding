@@ -103,23 +103,16 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ---
 
-## Code execution (optional)
+## Code execution
 
-Coding drills require a self-hosted [Piston](https://github.com/engineer-man/piston) instance.
+Coding drills require the custom Go runner deployed at [github.com/jvcByte/code-runner](https://github.com/jvcByte/code-runner).
 
-```bash
-# Start Piston
-docker run -d --name piston_api --privileged -p 2000:2000 \
-  -e PISTON_OUTPUT_MAX_SIZE=65536 \
-  ghcr.io/engineer-man/piston
-
-# Install Go runtime
-curl -X POST http://localhost:2000/api/v2/packages \
-  -H "Content-Type: application/json" \
-  -d '{"language":"go","version":"1.16.2"}'
+Deploy it to Render (free tier) then set:
+```env
+PISTON_API_URL=https://your-runner.onrender.com
 ```
 
-Then set `PISTON_API_URL=http://localhost:2000/api/v2` in `.env.local` and restart the dev server.
+The runner accepts `POST /run` with `{ code, language, stdin }` and returns `{ stdout, stderr, exit_code, compile_output }`. The banner file (`standard.txt`) is automatically injected as stdin for Go exercises.
 
 ---
 
