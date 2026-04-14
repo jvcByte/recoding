@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Plus, X, KeyRound, Trash2 } from 'lucide-react';
+import { Plus, X, KeyRound, Trash2, AlertTriangle } from 'lucide-react';
 
 interface User { id: string; username: string; role: string; created_at: string; }
 interface Props { initialUsers: User[]; currentUserId: string; }
@@ -19,6 +19,7 @@ export default function UserManager({ initialUsers, currentUserId }: Props) {
   const [resetUserId, setResetUserId] = useState<string | null>(null);
   const [resetPassword, setResetPassword] = useState('');
   const [resetting, setResetting] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function handleCreate() {
@@ -56,7 +57,6 @@ export default function UserManager({ initialUsers, currentUserId }: Props) {
   }
 
   async function handleDelete(userId: string, username: string) {
-    if (!confirm(`Delete user "${username}"? This cannot be undone.`)) return;
     setDeletingId(userId);
     try {
       const res = await fetch(`/api/instructor/users/${userId}`, { method: 'DELETE' });
@@ -64,6 +64,7 @@ export default function UserManager({ initialUsers, currentUserId }: Props) {
       if (!res.ok) throw new Error(data.error ?? 'Failed');
       toast.success(`"${username}" deleted`);
       setUsers((prev) => prev.filter((u) => u.id !== userId));
+      setConfirmDeleteId(null);
       router.refresh();
     } catch (e: unknown) { toast.error(e instanceof Error ? e.message : 'Failed'); }
     finally { setDeletingId(null); }
@@ -131,11 +132,11 @@ export default function UserManager({ initialUsers, currentUserId }: Props) {
                     <td>
                       <div style={{ display: 'flex', gap: '0.4rem' }}>
                         <button className="btn btn-ghost btn-sm" onClick={() => { setResetUserId(resetUserId === user.id ? null : user.id); setResetPassword(''); }}>
-                          <KeyRound size={11} /> Reset
+                          <KeyRound size={11} /> Reset Password
                         </button>
                         {user.role === 'participant' && user.id !== currentUserId && (
-                          <button className="btn btn-danger btn-sm" disabled={deletingId === user.id} onClick={() => handleDelete(user.id, user.username)}>
-                            <Trash2 size={11} /> {deletingId === user.id ? '…' : 'Delete'}
+                          <button className="btn btn-danger btn-sm" onClick={() => setConfirmDeleteId(confirmDeleteId === user.id ? null : user.id)}>
+                            <Trash2 size={11} /> Delete
                           </button>
                         )}
                       </div>
@@ -145,9 +146,32 @@ export default function UserManager({ initialUsers, currentUserId }: Props) {
                     <tr key={`${user.id}-reset`}>
                       <td colSpan={4} style={{ background: 'var(--bg3)', padding: '0.75rem 1rem' }}>
                         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 12, color: 'var(--text3)', marginRight: 4 }}>New password for <strong style={{ color: 'var(--text2)' }}>{user.username}</strong>:</span>
                           <input className="form-input" type="password" placeholder="New password (min 8 chars)" value={resetPassword} autoFocus style={{ maxWidth: 280 }} onChange={(e) => setResetPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleResetPassword(user.id)} />
                           <button className="btn btn-primary btn-sm" disabled={resetting} onClick={() => handleResetPassword(user.id)}>{resetting ? 'Saving…' : 'Save'}</button>
                           <button className="btn btn-ghost btn-sm" onClick={() => { setResetUserId(null); setResetPassword(''); }}><X size={12} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  {confirmDeleteId === user.id && (
+                    <tr key={`${user.id}-delete`}>
+                      <td colSpan={4} style={{ background: 'rgba(239,68,68,0.06)', borderLeft: '3px solid var(--red)', padding: '0.75rem 1rem' }}>
+                        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <AlertTriangle size={14} style={{ color: 'var(--red)', flexShrink: 0 }} />
+                          <span style={{ fontSize: 13, color: 'var(--text2)' }}>
+                            Delete <strong style={{ color: 'var(--text)' }}>{user.username}</strong>? This cannot be undone.
+                          </span>
+                          <button
+                            className="btn btn-danger btn-sm"
+                            disabled={deletingId === user.id}
+                            onClick={() => handleDelete(user.id, user.username)}
+                          >
+                            {deletingId === user.id ? 'Deleting…' : 'Yes, delete'}
+                          </button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => setConfirmDeleteId(null)}>
+                            <X size={12} /> Cancel
+                          </button>
                         </div>
                       </td>
                     </tr>
