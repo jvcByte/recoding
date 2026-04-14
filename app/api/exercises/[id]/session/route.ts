@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { sql } from '@/lib/db';
+import { parseIntervalToSeconds } from '@/lib/utils';
 
 export async function GET(
   _req: NextRequest,

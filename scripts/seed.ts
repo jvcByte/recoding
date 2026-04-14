@@ -14,6 +14,7 @@ import path from 'path';
 import bcrypt from 'bcryptjs';
 import { loadExercise } from '../lib/questions';
 import { sql } from '../lib/db';
+import { slugToTitle } from '../lib/utils';
 
 // Load .env.local
 const envPath = path.join(process.cwd(), '.env.local');
@@ -38,13 +39,6 @@ const SLUGS = [
   'ascii-art',
   'ascii-art-web',
 ];
-
-function slugToTitle(slug: string): string {
-  return slug
-    .split('-')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
 
 async function seedExercises() {
   console.log('Seeding exercises...');

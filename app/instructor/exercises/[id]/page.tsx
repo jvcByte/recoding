@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { sql } from '@/lib/db';
+import { intervalToString } from '@/lib/utils';
 import ExerciseManager from './ExerciseManager';
 import QuestionManager from './QuestionManager';
 import Navbar from '@/app/components/Navbar';
@@ -9,19 +10,6 @@ import Link from 'next/link';
 
 interface Props {
   params: { id: string };
-}
-
-/** Convert a pg PostgresInterval object or string to "HH:MM:SS" string */
-function intervalToString(val: unknown): string {
-  if (typeof val === 'string') return val;
-  if (val && typeof val === 'object') {
-    const iv = val as Record<string, number>;
-    const h = String(iv.hours ?? 0).padStart(2, '0');
-    const m = String(iv.minutes ?? 0).padStart(2, '0');
-    const s = String(Math.floor(iv.seconds ?? 0)).padStart(2, '0');
-    return `${h}:${m}:${s}`;
-  }
-  return '';
 }
 
 export default async function ExercisePage({ params }: Props) {
@@ -122,4 +110,8 @@ export default async function ExercisePage({ params }: Props) {
       </main>
     </div>
   );
+}
+
+interface Props {
+  params: { id: string };
 }

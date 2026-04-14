@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
+import { GO_STARTER, BANNER_STARTER, extractCodeBlock, slugToTitle } from '@/lib/utils';
 
 export interface Question {
   index: number;
@@ -21,59 +22,13 @@ const PROMPT_PISCINE_SLUGS = new Set([
   'ethical-ai', 'reasoning-flow', 'role-prompt', 'tool-prompts',
 ]);
 
-// Exercises whose questions are in-browser coding tasks
-const CODE_EXERCISE_SLUGS = new Set(['ascii-art', 'ascii-art-web']);
-
 function resolveExerciseDir(slug: string): string {
   const base = path.join(process.cwd(), 'docs');
   if (PROMPT_PISCINE_SLUGS.has(slug)) return path.join(base, 'prompt-piscine', slug);
   return path.join(base, slug);
 }
 
-const GO_STARTER = `package main
-
-import "fmt"
-
-func main() {
-\tfmt.Println("Hello, World!")
-}
-`;
-
-// Load banner file content — passed via stdin to avoid large constants
-function getBannerStarter(): string {
-  return `package main
-
-import (
-\t"bufio"
-\t"fmt"
-\t"os"
-\t"strings"
-)
-
-// readBannerFromStdin reads the banner file lines from stdin.
-// The platform pre-loads the banner content into stdin for you.
-func readBannerFromStdin() []string {
-\tvar lines []string
-\tscanner := bufio.NewScanner(os.Stdin)
-\tfor scanner.Scan() {
-\t\tlines = append(lines, scanner.Text())
-\t}
-\treturn lines
-}
-
-func main() {
-\tlines := readBannerFromStdin()
-\tfmt.Println("Banner lines:", len(lines))
-\t_ = strings.Split // strings imported for your use
-}
-`;
-}
-
-/** Extract the first ```go ... ``` code block from markdown content */
-function extractStarterFromMarkdown(content: string): string | null {
-  const match = content.match(/```go\n([\s\S]*?)```/);
-  return match ? match[1] : null;
-}
+const CODE_EXERCISE_SLUGS = new Set(['ascii-art', 'ascii-art-web']);
 
 export function loadExercise(slug: string): ExerciseContent {
   const dir = resolveExerciseDir(slug);
@@ -107,13 +62,12 @@ export function loadExercise(slug: string): ExerciseContent {
       data.type ?? (isCodeExercise ? 'code' : 'written');
     const language: string = data.language ?? (isCodeExercise ? 'go' : 'text');
 
-    // For code exercises: extract starter from the question's code block,
-    // fall back to frontmatter starter, then generic defaults
     let starter: string;
     if (data.starter) {
       starter = data.starter;
     } else if (type === 'code') {
-      starter = extractStarterFromMarkdown(content) ?? GO_STARTER;
+      const isBannerExercise = slug === 'ascii-art' || slug === 'ascii-art-web';
+      starter = extractCodeBlock(content) ?? (isBannerExercise ? BANNER_STARTER : GO_STARTER);
     } else {
       starter = '';
     }
@@ -121,10 +75,5 @@ export function loadExercise(slug: string): ExerciseContent {
     return { index: i, text: content.trim(), type, language, starter };
   });
 
-  const title = slug
-    .split('-')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
-
-  return { slug, title, questions };
+  return { slug, title: slugToTitle(slug), questions };
 }

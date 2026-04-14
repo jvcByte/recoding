@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { audit } from '@/lib/audit';
+import { extractCodeBlock, splitMarkdownQuestions } from '@/lib/utils';
 
 /**
  * POST /api/instructor/exercises/:id/questions/upload
@@ -54,35 +55,7 @@ export async function POST(
   const questionType = (formData.get('type') as string) ?? 'written';
   const language = (formData.get('language') as string) ?? 'text';
 
-  // Split on any markdown heading that starts a question/drill section.
-  // Handles: ## Question 1, ### Question 1, ## Drill 1, # Question 1, etc.
-  // Also handles --- horizontal rule separators between questions.
-  const lines = content.split('\n');
-  const questionPattern = /^#{1,4}\s+(?:Question|Drill|Exercise)\s+\d+/i;
-
-  const sections: string[] = [];
-  let current: string[] = [];
-
-  for (const line of lines) {
-    if (questionPattern.test(line.trim())) {
-      // Save previous section if it has content
-      if (current.length > 0) {
-        const text = current.join('\n').trim();
-        if (text) sections.push(text);
-      }
-      current = [line];
-    } else {
-      current.push(line);
-    }
-  }
-  // Push last section
-  if (current.length > 0) {
-    const text = current.join('\n').trim();
-    if (text) sections.push(text);
-  }
-
-  // Filter out sections that don't start with a question heading
-  const parts = sections.filter((s) => questionPattern.test(s.split('\n')[0].trim()));
+  const parts = splitMarkdownQuestions(content);
 
   if (parts.length === 0) {
     return NextResponse.json({
@@ -90,10 +63,9 @@ export async function POST(
     }, { status: 422 });
   }
 
-  // Extract starter code from first ```go block if present
+  // Extract starter code from first code block if present
   function extractStarter(text: string): string {
-    const match = text.match(/```(?:go|python|javascript)\n([\s\S]*?)```/);
-    return match ? match[1] : '';
+    return extractCodeBlock(text, language) ?? extractCodeBlock(text, 'go') ?? '';
   }
 
   // Delete existing questions and replace
