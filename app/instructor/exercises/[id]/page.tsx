@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { sql } from '@/lib/db';
 import ExerciseManager from './ExerciseManager';
+import QuestionManager from './QuestionManager';
 import Navbar from '@/app/components/Navbar';
 import Link from 'next/link';
 
@@ -73,6 +74,11 @@ export default async function ExercisePage({ params }: Props) {
 
   const allParticipants = await sql`SELECT id, username FROM users WHERE role = 'participant' ORDER BY username`;
 
+  const questionRows = await sql`
+    SELECT id, question_index, text, type, language, starter
+    FROM questions WHERE exercise_id = ${id} ORDER BY question_index
+  `;
+
   return (
     <div className="page">
       <Navbar
@@ -100,6 +106,18 @@ export default async function ExercisePage({ params }: Props) {
             assignedUsers={assignedUsers as { id: string; username: string }[]}
             allParticipants={allParticipants as { id: string; username: string }[]}
           />
+
+          {/* Question management */}
+          <div className="card" style={{ marginTop: '1.5rem' }}>
+            <div className="card-header">
+              <span className="card-title">Questions</span>
+              <span className="badge badge-purple">{questionRows.length}</span>
+            </div>
+            <QuestionManager
+              exerciseId={id}
+              initialQuestions={questionRows as { id: string; question_index: number; text: string; type: 'written' | 'code'; language: string; starter: string }[]}
+            />
+          </div>
         </div>
       </main>
     </div>
