@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
-import { Plus, Trash2, Edit3, ChevronDown, ChevronUp, Save, X, Upload } from 'lucide-react';
+import { Plus, Trash2, Edit3, ChevronDown, ChevronUp, Save, X, Upload, FileText } from 'lucide-react';
 
 interface Question {
   id: string;
@@ -30,45 +30,50 @@ export default function QuestionManager({ exerciseId, initialQuestions }: Props)
   const [uploading, setUploading] = useState(false);
   const [uploadType, setUploadType] = useState('written');
   const [uploadLang, setUploadLang] = useState('text');
+  const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.name.endsWith('.md')) { toast.error('Only .md files are supported'); return; }
+    await uploadFile(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
 
+  async function uploadFile(file: File) {
     setUploading(true);
     try {
       const form = new FormData();
       form.append('file', file);
       form.append('type', uploadType);
       form.append('language', uploadLang);
-
-      const res = await fetch(`/api/instructor/exercises/${exerciseId}/questions/upload`, {
-        method: 'POST',
-        body: form,
-      });
+      const res = await fetch(`/api/instructor/exercises/${exerciseId}/questions/upload`, { method: 'POST', body: form });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Upload failed');
-
       toast.success(`Imported ${data.imported} questions`);
-      // Reload page to show new questions
       window.location.reload();
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Upload failed');
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    if (!file.name.endsWith('.md')) { toast.error('Only .md files are supported'); return; }
+    uploadFile(file);
   }
 
   async function saveEdit(id: string) {
     setSaving(true);
     try {
       const res = await fetch(`/api/instructor/exercises/${exerciseId}/questions/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editDraft),
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editDraft),
       });
       if (!res.ok) throw new Error(await res.text());
       const updated = await res.json();
@@ -77,9 +82,7 @@ export default function QuestionManager({ exerciseId, initialQuestions }: Props)
       toast.success('Question updated');
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed to save');
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   }
 
   async function deleteQuestion(id: string, index: number) {
@@ -99,9 +102,7 @@ export default function QuestionManager({ exerciseId, initialQuestions }: Props)
     setSaving(true);
     try {
       const res = await fetch(`/api/instructor/exercises/${exerciseId}/questions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newQ),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newQ),
       });
       if (!res.ok) throw new Error(await res.text());
       const created = await res.json();
@@ -111,113 +112,144 @@ export default function QuestionManager({ exerciseId, initialQuestions }: Props)
       toast.success('Question added');
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed to add');
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-      {questions.length === 0 && !adding && (
-        <div className="card" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text3)' }}>
-          No questions yet. Add the first one below.
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+      {/* ── Question list ── */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div className="card-header" style={{ padding: '0.85rem 1rem', marginBottom: 0 }}>
+          <span className="card-title">Questions</span>
+          <span className="badge badge-gray">{questions.length}</span>
         </div>
-      )}
 
-      {questions.map((q) => (
-        <div key={q.id} className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.85rem 1rem', cursor: 'pointer' }}
-            onClick={() => setExpanded(expanded === q.id ? null : q.id)}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', minWidth: 24 }}>
-              Q{q.question_index + 1}
-            </span>
-            <span className={`badge ${q.type === 'code' ? 'badge-purple' : 'badge-gray'}`}>
-              {q.type === 'code' ? q.language : 'written'}
-            </span>
-            <span style={{ flex: 1, fontSize: 13, color: 'var(--text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {q.text.split('\n')[0].replace(/^#+\s*/, '').slice(0, 80)}
-            </span>
-            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
-              <button className="btn btn-ghost btn-sm" onClick={() => { setEditing(q.id); setEditDraft({ text: q.text, type: q.type, language: q.language, starter: q.starter }); setExpanded(q.id); }}>
-                <Edit3 size={12} />
-              </button>
-              <button className="btn btn-danger btn-sm" onClick={() => deleteQuestion(q.id, q.question_index)}>
-                <Trash2 size={12} />
-              </button>
-            </div>
-            {expanded === q.id ? <ChevronUp size={14} style={{ color: 'var(--text3)', flexShrink: 0 }} /> : <ChevronDown size={14} style={{ color: 'var(--text3)', flexShrink: 0 }} />}
+        {questions.length === 0 ? (
+          <div style={{ padding: '2.5rem 1rem', textAlign: 'center', color: 'var(--text3)', fontSize: 13 }}>
+            No questions yet — add one below or upload a .md file.
           </div>
+        ) : (
+          <div>
+            <div style={{ display: 'grid', gridTemplateColumns: '40px 90px 1fr auto', gap: '0.75rem', padding: '0.5rem 1rem', background: 'var(--bg3)', borderBottom: '1px solid var(--border)', alignItems: 'center' }}>
+              {['#', 'Type', 'Preview', 'Actions'].map((h) => (
+                <span key={h} style={{ fontSize: 10, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{h}</span>
+              ))}
+            </div>
 
-          {/* Expanded content */}
-          {expanded === q.id && (
-            <div style={{ borderTop: '1px solid var(--border)', padding: '1rem' }}>
-              {editing === q.id ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <div className="form-group">
-                    <label className="form-label">Question Text (Markdown)</label>
-                    <textarea className="form-textarea" rows={8} value={editDraft.text ?? ''} onChange={(e) => setEditDraft((d) => ({ ...d, text: e.target.value }))} />
+            {questions.map((q, idx) => (
+              <div key={q.id} style={{ borderBottom: idx < questions.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                <div
+                  style={{ display: 'grid', gridTemplateColumns: '40px 90px 1fr auto', gap: '0.75rem', padding: '0.75rem 1rem', alignItems: 'center', cursor: 'pointer', background: expanded === q.id ? 'var(--bg3)' : 'transparent', transition: 'background 0.1s' }}
+                  onClick={() => setExpanded(expanded === q.id ? null : q.id)}
+                >
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent2)', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 'var(--radius-sm)', width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {q.question_index + 1}
+                  </span>
+                  <span className={`badge ${q.type === 'code' ? 'badge-purple' : 'badge-gray'}`}>
+                    {q.type === 'code' ? q.language : 'written'}
+                  </span>
+                  <span style={{ fontSize: 13, color: 'var(--text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    {q.text.split('\n')[0].replace(/^#+\s*/, '').slice(0, 100)}
+                    {expanded === q.id ? <ChevronUp size={13} style={{ color: 'var(--text3)', flexShrink: 0 }} /> : <ChevronDown size={13} style={{ color: 'var(--text3)', flexShrink: 0 }} />}
+                  </span>
+                  <div style={{ display: 'flex', gap: '0.35rem' }} onClick={(e) => e.stopPropagation()}>
+                    <button className="btn btn-ghost btn-sm" title="Edit" onClick={() => { setEditing(q.id); setEditDraft({ text: q.text, type: q.type, language: q.language, starter: q.starter }); setExpanded(q.id); }}>
+                      <Edit3 size={12} />
+                    </button>
+                    <button className="btn btn-danger btn-sm" title="Delete" onClick={() => deleteQuestion(q.id, q.question_index)}>
+                      <Trash2 size={12} />
+                    </button>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                    <div className="form-group">
-                      <label className="form-label">Type</label>
-                      <select className="form-select" value={editDraft.type ?? 'written'} onChange={(e) => setEditDraft((d) => ({ ...d, type: e.target.value as 'written' | 'code' }))}>
-                        <option value="written">Written</option>
-                        <option value="code">Code</option>
-                      </select>
-                    </div>
-                    {editDraft.type === 'code' && (
-                      <div className="form-group">
-                        <label className="form-label">Language</label>
-                        <select className="form-select" value={editDraft.language ?? 'go'} onChange={(e) => setEditDraft((d) => ({ ...d, language: e.target.value }))}>
-                          <option value="go">Go</option>
-                          <option value="python">Python</option>
-                          <option value="javascript">JavaScript</option>
-                        </select>
+                </div>
+
+                {expanded === q.id && (
+                  <div style={{ borderTop: '1px solid var(--border)', padding: '1rem', background: 'var(--bg3)' }}>
+                    {editing === q.id ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                        <div className="form-group">
+                          <label className="form-label">Question Text (Markdown)</label>
+                          <textarea className="form-textarea" rows={8} value={editDraft.text ?? ''} onChange={(e) => setEditDraft((d) => ({ ...d, text: e.target.value }))} />
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
+                          <div className="form-group">
+                            <label className="form-label">Type</label>
+                            <select className="form-select" value={editDraft.type ?? 'written'} onChange={(e) => setEditDraft((d) => ({ ...d, type: e.target.value as 'written' | 'code' }))}>
+                              <option value="written">Written</option>
+                              <option value="code">Code</option>
+                            </select>
+                          </div>
+                          {editDraft.type === 'code' && (
+                            <div className="form-group">
+                              <label className="form-label">Language</label>
+                              <select className="form-select" value={editDraft.language ?? 'go'} onChange={(e) => setEditDraft((d) => ({ ...d, language: e.target.value }))}>
+                                <option value="go">Go</option>
+                                <option value="python">Python</option>
+                                <option value="javascript">JavaScript</option>
+                              </select>
+                            </div>
+                          )}
+                        </div>
+                        {editDraft.type === 'code' && (
+                          <div className="form-group">
+                            <label className="form-label">Starter Code</label>
+                            <textarea className="form-textarea" rows={8} style={{ fontFamily: "'Fira Code', monospace", fontSize: 12 }} value={editDraft.starter ?? ''} onChange={(e) => setEditDraft((d) => ({ ...d, starter: e.target.value }))} />
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button className="btn btn-success" disabled={saving} onClick={() => saveEdit(q.id)}><Save size={12} /> {saving ? 'Saving…' : 'Save changes'}</button>
+                          <button className="btn btn-ghost" onClick={() => setEditing(null)}><X size={12} /> Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="question-text">
+                        <ReactMarkdown>{q.text}</ReactMarkdown>
+                        {q.type === 'code' && q.starter && (
+                          <div style={{ marginTop: '1rem' }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.4rem' }}>Starter Code</div>
+                            <pre style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '0.75rem', fontSize: 12, overflowX: 'auto', color: 'var(--text2)', fontFamily: "'Fira Code', monospace" }}>{q.starter}</pre>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
-                  {editDraft.type === 'code' && (
-                    <div className="form-group">
-                      <label className="form-label">Starter Code</label>
-                      <textarea className="form-textarea" rows={8} style={{ fontFamily: 'monospace', fontSize: 12 }} value={editDraft.starter ?? ''} onChange={(e) => setEditDraft((d) => ({ ...d, starter: e.target.value }))} />
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button className="btn btn-primary" disabled={saving} onClick={() => saveEdit(q.id)}>
-                      <Save size={12} /> {saving ? 'Saving…' : 'Save'}
-                    </button>
-                    <button className="btn btn-ghost" onClick={() => setEditing(null)}>
-                      <X size={12} /> Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="question-text">
-                  <ReactMarkdown>{q.text}</ReactMarkdown>
-                  {q.type === 'code' && q.starter && (
-                    <div style={{ marginTop: '1rem' }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.4rem' }}>Starter Code</div>
-                      <pre style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '0.75rem', fontSize: 12, overflowX: 'auto', color: 'var(--text2)' }}>{q.starter}</pre>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      ))}
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
-      {/* Upload .md file */}
-      <div className="card" style={{ padding: '1rem' }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.75rem' }}>
-          Bulk Upload from .md File
+      {/* ── Upload card ── */}
+      <div className="card">
+        <div className="card-header">
+          <span className="card-title">Bulk Import from Markdown</span>
+          <span className="badge badge-orange">Replaces all questions</span>
         </div>
-        <p style={{ fontSize: 12, color: 'var(--text3)', marginBottom: '0.75rem' }}>
-          Upload a Markdown file with headings like <code style={{ background: 'var(--bg3)', padding: '1px 5px', borderRadius: 3 }}>## Question 1</code> or <code style={{ background: 'var(--bg3)', padding: '1px 5px', borderRadius: 3 }}>## Drill 1</code>. Each section becomes a question. <strong style={{ color: 'var(--red)' }}>This replaces all existing questions.</strong>
+        <p style={{ fontSize: 12, color: 'var(--text3)', marginBottom: '1rem', lineHeight: 1.7 }}>
+          Upload a <code style={{ background: 'var(--bg3)', border: '1px solid var(--border)', padding: '1px 5px', borderRadius: 3, color: 'var(--accent2)' }}>.md</code> file
+          with sections like <code style={{ background: 'var(--bg3)', border: '1px solid var(--border)', padding: '1px 5px', borderRadius: 3, color: 'var(--accent2)' }}>## Question 1</code>.
+          Each section becomes a question.
         </p>
+        <div
+          onClick={() => !uploading && fileInputRef.current?.click()}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+          style={{ border: `2px dashed ${dragOver ? 'var(--accent)' : 'var(--border2)'}`, borderRadius: 'var(--radius-lg)', padding: '2rem 1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem', cursor: uploading ? 'not-allowed' : 'pointer', background: dragOver ? 'var(--glow2)' : 'var(--bg3)', transition: 'border-color 0.15s, background 0.15s', marginBottom: '1rem', opacity: uploading ? 0.6 : 1 }}
+        >
+          {uploading
+            ? <Upload size={28} style={{ color: 'var(--accent2)' }} />
+            : <FileText size={28} style={{ color: dragOver ? 'var(--accent2)' : 'var(--text3)' }} />
+          }
+          <span style={{ fontSize: 13, fontWeight: 600, color: dragOver ? 'var(--text)' : 'var(--text2)' }}>
+            {uploading ? 'Uploading…' : 'Drop a .md file here or click to browse'}
+          </span>
+          <span style={{ fontSize: 11, color: 'var(--text3)' }}>Markdown format · .md files only</span>
+        </div>
+        <input ref={fileInputRef} type="file" accept=".md" style={{ display: 'none' }} onChange={handleUpload} />
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <div className="form-group" style={{ minWidth: 120 }}>
+          <div className="form-group" style={{ minWidth: 130 }}>
             <label className="form-label">Question Type</label>
             <select className="form-select" value={uploadType} onChange={(e) => { setUploadType(e.target.value); if (e.target.value !== 'code') setUploadLang('text'); }}>
               <option value="written">Written</option>
@@ -225,7 +257,7 @@ export default function QuestionManager({ exerciseId, initialQuestions }: Props)
             </select>
           </div>
           {uploadType === 'code' && (
-            <div className="form-group" style={{ minWidth: 120 }}>
+            <div className="form-group" style={{ minWidth: 130 }}>
               <label className="form-label">Language</label>
               <select className="form-select" value={uploadLang} onChange={(e) => setUploadLang(e.target.value)}>
                 <option value="go">Go</option>
@@ -234,35 +266,25 @@ export default function QuestionManager({ exerciseId, initialQuestions }: Props)
               </select>
             </div>
           )}
-          <div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".md"
-              style={{ display: 'none' }}
-              onChange={handleUpload}
-            />
-            <button
-              className="btn btn-secondary"
-              disabled={uploading}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Upload size={13} /> {uploading ? 'Uploading…' : 'Choose .md file'}
-            </button>
-          </div>
+          <button className="btn btn-secondary" disabled={uploading} onClick={() => fileInputRef.current?.click()} style={{ marginBottom: '0.4rem' }}>
+            <Upload size={13} /> {uploading ? 'Uploading…' : 'Choose file'}
+          </button>
         </div>
       </div>
 
-      {/* Add new question */}
+      {/* ── Add question ── */}
       {adding ? (
-        <div className="card">
-          <div className="card-header"><span className="card-title">New Question</span></div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div className="card card-glow">
+          <div className="card-header">
+            <span className="card-title">New Question</span>
+            <button className="btn btn-ghost btn-sm" onClick={() => setAdding(false)}><X size={13} /> Discard</button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
             <div className="form-group">
               <label className="form-label">Question Text (Markdown)</label>
               <textarea className="form-textarea" rows={8} placeholder="Write your question in Markdown…" value={newQ.text} onChange={(e) => setNewQ((q) => ({ ...q, text: e.target.value }))} />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
               <div className="form-group">
                 <label className="form-label">Type</label>
                 <select className="form-select" value={newQ.type} onChange={(e) => setNewQ((q) => ({ ...q, type: e.target.value }))}>
@@ -284,16 +306,12 @@ export default function QuestionManager({ exerciseId, initialQuestions }: Props)
             {newQ.type === 'code' && (
               <div className="form-group">
                 <label className="form-label">Starter Code</label>
-                <textarea className="form-textarea" rows={8} style={{ fontFamily: 'monospace', fontSize: 12 }} placeholder="package main&#10;&#10;func main() {&#10;  // TODO&#10;}" value={newQ.starter} onChange={(e) => setNewQ((q) => ({ ...q, starter: e.target.value }))} />
+                <textarea className="form-textarea" rows={8} style={{ fontFamily: "'Fira Code', monospace", fontSize: 12 }} placeholder={'package main\n\nfunc main() {\n  // TODO\n}'} value={newQ.starter} onChange={(e) => setNewQ((q) => ({ ...q, starter: e.target.value }))} />
               </div>
             )}
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button className="btn btn-primary" disabled={saving} onClick={addQuestion}>
-                <Plus size={12} /> {saving ? 'Adding…' : 'Add Question'}
-              </button>
-              <button className="btn btn-ghost" onClick={() => setAdding(false)}>
-                <X size={12} /> Cancel
-              </button>
+              <button className="btn btn-primary" disabled={saving} onClick={addQuestion}><Plus size={13} /> {saving ? 'Adding…' : 'Add Question'}</button>
+              <button className="btn btn-ghost" onClick={() => setAdding(false)}><X size={12} /> Cancel</button>
             </div>
           </div>
         </div>
