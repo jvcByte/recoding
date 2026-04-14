@@ -5,7 +5,7 @@ import { sql } from '@/lib/db';
 import LiveMonitor from './LiveMonitor';
 import CreateExercise from './CreateExercise';
 import Navbar from '@/app/components/Navbar';
-import { Radio } from 'lucide-react';
+import { Radio, Users } from 'lucide-react';
 
 interface Exercise {
   id: string;
@@ -39,12 +39,17 @@ export default async function InstructorDashboard() {
   const enabled = exercises.filter((e) => e.enabled).length;
   const totalAssigned = exercises.reduce((s, e) => s + e.assigned_user_ids.length, 0);
 
+  let participantCount = 0;
+  try {
+    const r = await sql`SELECT COUNT(*)::int AS count FROM users WHERE role = 'participant'`;
+    participantCount = (r[0]?.count as number) ?? 0;
+  } catch { /* ignore */ }
+
   return (
     <div className="page">
       <Navbar
         username={session?.user?.name ?? undefined}
         role="instructor"
-        links={[{ href: '/instructor', label: 'Dashboard' }]}
       />
       <main className="main">
         <div className="container">
@@ -74,6 +79,13 @@ export default async function InstructorDashboard() {
               <span className="label">Assignments</span>
               <span className="value">{totalAssigned}</span>
             </div>
+            <Link href="/instructor/users" className="stat-tile" style={{ textDecoration: 'none', cursor: 'pointer' }}>
+              <span className="label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Users size={10} /> Participants
+              </span>
+              <span className="value" style={{ color: 'var(--accent2)' }}>{participantCount}</span>
+              <span className="sub">Manage →</span>
+            </Link>
           </div>
 
           {/* Exercises table */}
