@@ -3,7 +3,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { sql } from '@/lib/db';
 import LiveMonitor from './LiveMonitor';
+import CreateExercise from './CreateExercise';
 import Navbar from '@/app/components/Navbar';
+import { Radio } from 'lucide-react';
 
 interface Exercise {
   id: string;
@@ -30,8 +32,6 @@ async function getExercises(): Promise<Exercise[]> {
   }
 }
 
-import { Radio } from 'lucide-react';
-
 export default async function InstructorDashboard() {
   const session = await getServerSession(authOptions);
   const exercises = await getExercises();
@@ -48,9 +48,12 @@ export default async function InstructorDashboard() {
       />
       <main className="main">
         <div className="container">
-          <div className="page-header">
-            <h1 className="page-title">Instructor Dashboard</h1>
-            <p className="page-sub">Manage exercises, review submissions, and monitor live sessions.</p>
+          <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <h1 className="page-title">Instructor Dashboard</h1>
+              <p className="page-sub">Manage exercises, review submissions, and monitor live sessions.</p>
+            </div>
+            <CreateExercise />
           </div>
 
           {/* Stats */}
@@ -79,7 +82,7 @@ export default async function InstructorDashboard() {
               <span className="card-title">Exercises</span>
             </div>
             {exercises.length === 0 ? (
-              <p style={{ color: 'var(--text3)', fontSize: 13 }}>No exercises found.</p>
+              <p style={{ color: 'var(--text3)', fontSize: 13 }}>No exercises yet. Create one above.</p>
             ) : (
               <div className="table-wrap">
                 <table>

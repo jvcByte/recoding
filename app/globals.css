@@ -25,9 +25,9 @@
   --radius-lg:14px;
 }
 
-html, body { height: 100%; }
-
+html { height: 100%; }
 body {
+  min-height: 100%;
   background: var(--bg);
   color: var(--text);
   font-family: 'Inter', 'SF Pro Display', system-ui, sans-serif;
