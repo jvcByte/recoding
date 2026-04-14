@@ -12,6 +12,7 @@
     "migrate": "tsx scripts/migrate.ts",
     "migrate:fresh": "tsx scripts/migrate.ts fresh && tsx scripts/seed.ts && tsx scripts/import-questions.ts",
     "seed": "tsx scripts/seed.ts",
+    "create-users": "tsx scripts/create-users.ts",
     "import-questions": "tsx scripts/import-questions.ts",
     "cleanup": "tsx scripts/cleanup-autosave.ts",
     "reset-password": "tsx scripts/reset-password.ts"
