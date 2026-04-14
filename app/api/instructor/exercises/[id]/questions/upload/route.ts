@@ -54,15 +54,39 @@ export async function POST(
   const questionType = (formData.get('type') as string) ?? 'written';
   const language = (formData.get('language') as string) ?? 'text';
 
-  // Split on ## Question N or ## Drill N headings
-  const parts = content
-    .split(/(?=^## (?:Question|Drill) \d+)/m)
-    .map((p) => p.trim())
-    .filter((p) => p.match(/^## (?:Question|Drill) \d+/));
+  // Split on any markdown heading that starts a question/drill section.
+  // Handles: ## Question 1, ### Question 1, ## Drill 1, # Question 1, etc.
+  // Also handles --- horizontal rule separators between questions.
+  const lines = content.split('\n');
+  const questionPattern = /^#{1,4}\s+(?:Question|Drill|Exercise)\s+\d+/i;
+
+  const sections: string[] = [];
+  let current: string[] = [];
+
+  for (const line of lines) {
+    if (questionPattern.test(line.trim())) {
+      // Save previous section if it has content
+      if (current.length > 0) {
+        const text = current.join('\n').trim();
+        if (text) sections.push(text);
+      }
+      current = [line];
+    } else {
+      current.push(line);
+    }
+  }
+  // Push last section
+  if (current.length > 0) {
+    const text = current.join('\n').trim();
+    if (text) sections.push(text);
+  }
+
+  // Filter out sections that don't start with a question heading
+  const parts = sections.filter((s) => questionPattern.test(s.split('\n')[0].trim()));
 
   if (parts.length === 0) {
     return NextResponse.json({
-      error: 'No questions found. File must contain headings like "## Question 1" or "## Drill 1".',
+      error: 'No questions found. File must contain headings like "## Question 1", "### Question 1", or "## Drill 1".',
     }, { status: 422 });
   }
 
