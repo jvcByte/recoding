@@ -63,9 +63,14 @@ export async function GET(req: NextRequest) {
               pe.submission_id,
               pe.char_count,
               pe.occurred_at,
-              s.session_id
+              s.session_id,
+              u.username,
+              e.title AS exercise_title
             FROM paste_events pe
             JOIN submissions s ON s.id = pe.submission_id
+            JOIN sessions sess ON sess.id = s.session_id
+            JOIN users u ON u.id = sess.user_id
+            JOIN exercises e ON e.id = sess.exercise_id
             WHERE pe.occurred_at > ${since}
             ORDER BY pe.occurred_at ASC
           `;
@@ -73,14 +78,19 @@ export async function GET(req: NextRequest) {
           // Query focus events newer than `since`
           const focusEvents = await sql`
             SELECT
-              id,
-              session_id,
-              lost_at,
-              regained_at,
-              duration_ms
-            FROM focus_events
-            WHERE lost_at > ${since}
-            ORDER BY lost_at ASC
+              fe.id,
+              fe.session_id,
+              fe.lost_at,
+              fe.regained_at,
+              fe.duration_ms,
+              u.username,
+              e.title AS exercise_title
+            FROM focus_events fe
+            JOIN sessions sess ON sess.id = fe.session_id
+            JOIN users u ON u.id = sess.user_id
+            JOIN exercises e ON e.id = sess.exercise_id
+            WHERE fe.lost_at > ${since}
+            ORDER BY fe.lost_at ASC
           `;
 
           // Query edit events (keystroke batches) newer than `since`
@@ -91,9 +101,14 @@ export async function GET(req: NextRequest) {
               ee.event_type,
               ee.char_count,
               ee.occurred_at,
-              s.session_id
+              s.session_id,
+              u.username,
+              e.title AS exercise_title
             FROM edit_events ee
             JOIN submissions s ON s.id = ee.submission_id
+            JOIN sessions sess ON sess.id = s.session_id
+            JOIN users u ON u.id = sess.user_id
+            JOIN exercises e ON e.id = sess.exercise_id
             WHERE ee.occurred_at > ${since}
             ORDER BY ee.occurred_at ASC
           `;
@@ -105,6 +120,8 @@ export async function GET(req: NextRequest) {
               type: 'paste',
               submission_id: event.submission_id,
               session_id: event.session_id,
+              username: event.username,
+              exercise_title: event.exercise_title,
               char_count: event.char_count,
               occurred_at: event.occurred_at,
             });
@@ -117,6 +134,8 @@ export async function GET(req: NextRequest) {
             const payload = JSON.stringify({
               type: 'focus',
               session_id: event.session_id,
+              username: event.username,
+              exercise_title: event.exercise_title,
               lost_at: event.lost_at,
               regained_at: event.regained_at ?? null,
               duration_ms: event.duration_ms ?? null,
@@ -142,6 +161,8 @@ export async function GET(req: NextRequest) {
                 type: 'keystroke_batch',
                 submission_id: submissionId,
                 session_id: latest.session_id,
+                username: latest.username,
+                exercise_title: latest.exercise_title,
                 char_count: events.reduce((sum: number, e) => sum + (e.char_count as number), 0),
                 event_count: events.length,
                 occurred_at: latest.occurred_at,

@@ -160,7 +160,7 @@ export default async function SubmissionDetailPage({ params }: Props) {
                           <td style={{ color: 'var(--text3)' }}>{new Date(ev.lost_at).toLocaleString()}</td>
                           <td style={{ color: 'var(--text3)' }}>{ev.regained_at ? new Date(ev.regained_at).toLocaleString() : '—'}</td>
                           <td style={{ color: ev.duration_ms != null ? 'var(--orange)' : 'var(--text3)', fontWeight: ev.duration_ms != null ? 600 : 400 }}>
-                            {ev.duration_ms != null ? ev.duration_ms : '—'}
+                            {ev.duration_ms != null ? `${(ev.duration_ms / 1000).toFixed(1)}s` : '—'}
                           </td>
                         </tr>
                       ))}
