@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
-import { Plus, Trash2, Edit3, ChevronDown, ChevronUp, Save, X } from 'lucide-react';
+import { Plus, Trash2, Edit3, ChevronDown, ChevronUp, Save, X, Upload } from 'lucide-react';
 
 interface Question {
   id: string;
@@ -27,6 +27,40 @@ export default function QuestionManager({ exerciseId, initialQuestions }: Props)
   const [adding, setAdding] = useState(false);
   const [newQ, setNewQ] = useState({ text: '', type: 'written', language: 'text', starter: '' });
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadType, setUploadType] = useState('written');
+  const [uploadLang, setUploadLang] = useState('text');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.endsWith('.md')) { toast.error('Only .md files are supported'); return; }
+
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('type', uploadType);
+      form.append('language', uploadLang);
+
+      const res = await fetch(`/api/instructor/exercises/${exerciseId}/questions/upload`, {
+        method: 'POST',
+        body: form,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Upload failed');
+
+      toast.success(`Imported ${data.imported} questions`);
+      // Reload page to show new questions
+      window.location.reload();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
 
   async function saveEdit(id: string) {
     setSaving(true);
@@ -173,6 +207,51 @@ export default function QuestionManager({ exerciseId, initialQuestions }: Props)
           )}
         </div>
       ))}
+
+      {/* Upload .md file */}
+      <div className="card" style={{ padding: '1rem' }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.75rem' }}>
+          Bulk Upload from .md File
+        </div>
+        <p style={{ fontSize: 12, color: 'var(--text3)', marginBottom: '0.75rem' }}>
+          Upload a Markdown file with headings like <code style={{ background: 'var(--bg3)', padding: '1px 5px', borderRadius: 3 }}>## Question 1</code> or <code style={{ background: 'var(--bg3)', padding: '1px 5px', borderRadius: 3 }}>## Drill 1</code>. Each section becomes a question. <strong style={{ color: 'var(--red)' }}>This replaces all existing questions.</strong>
+        </p>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div className="form-group" style={{ minWidth: 120 }}>
+            <label className="form-label">Question Type</label>
+            <select className="form-select" value={uploadType} onChange={(e) => { setUploadType(e.target.value); if (e.target.value !== 'code') setUploadLang('text'); }}>
+              <option value="written">Written</option>
+              <option value="code">Code</option>
+            </select>
+          </div>
+          {uploadType === 'code' && (
+            <div className="form-group" style={{ minWidth: 120 }}>
+              <label className="form-label">Language</label>
+              <select className="form-select" value={uploadLang} onChange={(e) => setUploadLang(e.target.value)}>
+                <option value="go">Go</option>
+                <option value="python">Python</option>
+                <option value="javascript">JavaScript</option>
+              </select>
+            </div>
+          )}
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".md"
+              style={{ display: 'none' }}
+              onChange={handleUpload}
+            />
+            <button
+              className="btn btn-secondary"
+              disabled={uploading}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload size={13} /> {uploading ? 'Uploading…' : 'Choose .md file'}
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Add new question */}
       {adding ? (
