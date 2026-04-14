@@ -141,30 +141,3 @@ export async function GET(
   });
 }
 
-/**
- * Parse a Postgres INTERVAL value to total seconds.
- * Neon may return it as a string "HH:MM:SS", "HH:MM:SS.mmm",
- * or as a number (seconds) depending on the driver version.
- */
-function parseIntervalToSeconds(interval: unknown): number {
-  if (typeof interval === 'number') return interval;
-  // pg driver returns INTERVAL as a PostgresInterval object
-  if (interval && typeof interval === 'object') {
-    const iv = interval as Record<string, number>;
-    return (iv.years ?? 0) * 31536000
-      + (iv.months ?? 0) * 2592000
-      + (iv.days ?? 0) * 86400
-      + (iv.hours ?? 0) * 3600
-      + (iv.minutes ?? 0) * 60
-      + (iv.seconds ?? 0);
-  }
-  if (typeof interval === 'string') {
-    const parts = interval.split(':');
-    if (parts.length === 3) {
-      return parseInt(parts[0], 10) * 3600 + parseInt(parts[1], 10) * 60 + parseFloat(parts[2]);
-    }
-    const n = parseFloat(interval);
-    if (!isNaN(n)) return n;
-  }
-  return 0;
-}
