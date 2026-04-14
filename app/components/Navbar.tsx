@@ -5,7 +5,20 @@ import { GraduationCap, User, Hexagon } from 'lucide-react';
 interface NavLink { href: string; label: string; }
 interface Props { username?: string; role?: string; links?: NavLink[]; }
 
-export default function Navbar({ username, role, links = [] }: Props) {
+const defaultLinks: Record<string, NavLink[]> = {
+  instructor: [
+    { href: '/instructor', label: 'Dashboard' },
+    { href: '/instructor/users', label: 'Users' },
+  ],
+  participant: [
+    { href: '/participant', label: 'Exercises' },
+    { href: '/participant/settings', label: 'Settings' },
+  ],
+};
+
+export default function Navbar({ username, role, links }: Props) {
+  const navLinks = links ?? (role ? (defaultLinks[role] ?? []) : []);
+
   return (
     <nav className="navbar">
       <div className="container">
@@ -15,9 +28,9 @@ export default function Navbar({ username, role, links = [] }: Props) {
             <span style={{ color: 'var(--text2)', fontWeight: 400 }}>Recoding</span>
           </Link>
 
-          {links.length > 0 && (
+          {navLinks.length > 0 && (
             <div className="navbar-nav">
-              {links.map((l) => (
+              {navLinks.map((l) => (
                 <Link key={l.href} href={l.href} className="nav-link">{l.label}</Link>
               ))}
             </div>
@@ -26,10 +39,7 @@ export default function Navbar({ username, role, links = [] }: Props) {
           <div className="navbar-right">
             {username && (
               <span className="navbar-user">
-                {role === 'instructor'
-                  ? <GraduationCap size={11} />
-                  : <User size={11} />
-                }
+                {role === 'instructor' ? <GraduationCap size={11} /> : <User size={11} />}
                 {username}
               </span>
             )}
