@@ -13,7 +13,8 @@ if (!process.env.DATABASE_URL) {
 }
 
 if (!process.env.DATABASE_URL) {
-  throw new Error('DATABASE_URL environment variable is not set');
+  // Don't throw at module load (breaks Next.js build) — throw at query time instead
+  console.warn('[db] DATABASE_URL is not set — queries will fail at runtime');
 }
 
 // Use @neondatabase/serverless in Next.js (works over HTTPS, no port 5432 needed)
@@ -37,8 +38,6 @@ async function getQueryFn() {
       return _queryFn;
     } catch { /* fall through to pg */ }
   }
-
-  // pg fallback — works in scripts and when port 5432 is accessible
   const { Pool } = await import('pg');
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   pool.on('error', (err) => console.error('[db] Pool error:', err.message));
