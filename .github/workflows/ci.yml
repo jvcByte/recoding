@@ -5,6 +5,7 @@ on:
     branches: [main, preview]
   push:
     branches: [preview]
+  workflow_dispatch: # allows manual trigger from GitHub Actions tab
 
 jobs:
   build:
