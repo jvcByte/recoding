@@ -126,20 +126,22 @@ export default function LiveMonitor() {
           <span style={{ color: 'var(--text3)', fontSize: 10 }}>heartbeat {lastHeartbeat}</span>
         )}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <SearchInput value={search} onChange={setSearch} placeholder="Filter by participant…" style={{ minWidth: 180 }} />
-          <select
-            className="form-select"
-            style={{ fontSize: 11, padding: '0.3rem 0.6rem', minWidth: 110 }}
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-          >
-            <option value="all">All types</option>
-            <option value="paste">Paste</option>
-            <option value="focus">Focus</option>
-            <option value="keystroke_batch">Keystrokes</option>
-          </select>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flex: '1 1 auto', minWidth: 0 }}>
+            <SearchInput value={search} onChange={setSearch} placeholder="Filter by participant…" style={{ flex: '1 1 160px', minWidth: 0 }} />
+            <select
+              className="form-select"
+              style={{ fontSize: 11, padding: '0.3rem 0.6rem', flex: '0 0 auto', width: 'auto' }}
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+            >
+              <option value="all">All types</option>
+              <option value="paste">Paste</option>
+              <option value="focus">Focus</option>
+              <option value="keystroke_batch">Keystrokes</option>
+            </select>
+          </div>
           {events.length > 0 && (
-            <button className="btn btn-ghost btn-sm" onClick={() => setEvents([])}>Clear</button>
+            <button className="btn btn-ghost btn-sm" style={{ flexShrink: 0 }} onClick={() => setEvents([])}>Clear</button>
           )}
         </div>
       </div>
