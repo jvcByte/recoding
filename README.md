@@ -1,6 +1,6 @@
 # Recoding — Exercise Platform
 
-A controlled environment for running timed coding and writing exercises with live anti-cheat monitoring.
+A controlled environment for running timed coding and writing exercises with live anti-cheat monitoring. 
 
 ---
 
