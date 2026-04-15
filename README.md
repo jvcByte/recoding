@@ -197,4 +197,4 @@ scripts/         — CLI utilities
 
 ## License
 
-MIT
+[MIT](./LICENSE)
