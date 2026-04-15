@@ -589,3 +589,32 @@ tbody tr:hover td { color: var(--text); }
   border-left: 1px solid rgba(255,255,255,0.08) !important;
 } */
 
+
+/* ── Search input ── */
+.search-wrap { position: relative; }
+.search-wrap .search-icon {
+  position: absolute;
+  left: 0.6rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text3);
+  pointer-events: none;
+}
+.search-input {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 0.4rem 0.75rem 0.4rem 2rem;
+  font-size: 12px;
+  font-family: inherit;
+  width: 100%;
+  transition: border-color 0.15s;
+  min-width: 200px;
+}
+.search-input:focus {
+  outline: none;
+  border-color: rgba(99,102,241,0.5);
+  box-shadow: 0 0 0 3px var(--glow2);
+}
+.search-input::placeholder { color: var(--text4); }

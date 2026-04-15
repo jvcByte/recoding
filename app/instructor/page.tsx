@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { sql } from '@/lib/db';
 import LiveMonitor from './LiveMonitor';
 import CreateExercise from './CreateExercise';
+import ExercisesTable from './ExercisesTable';
 import Navbar from '@/app/components/Navbar';
 import { Radio, Users } from 'lucide-react';
 
@@ -88,53 +89,7 @@ export default async function InstructorDashboard() {
             </Link>
           </div>
 
-          {/* Exercises table */}
-          <div className="card" style={{ marginBottom: '1.5rem' }}>
-            <div className="card-header">
-              <span className="card-title">Exercises</span>
-            </div>
-            {exercises.length === 0 ? (
-              <p style={{ color: 'var(--text3)', fontSize: 13 }}>No exercises yet. Create one above.</p>
-            ) : (
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Title</th>
-                      <th>Status</th>
-                      <th>Questions</th>
-                      <th>Assigned</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {exercises.map((ex) => (
-                      <tr key={ex.id}>
-                        <td style={{ fontWeight: 600 }}>{ex.title}</td>
-                        <td>
-                          <span className={`badge ${ex.enabled ? 'badge-green' : 'badge-gray'}`}>
-                            {ex.enabled ? 'Enabled' : 'Disabled'}
-                          </span>
-                        </td>
-                        <td style={{ color: 'var(--text2)' }}>{ex.question_count}</td>
-                        <td style={{ color: 'var(--text2)' }}>{ex.assigned_user_ids.length}</td>
-                        <td>
-                          <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <Link href={`/instructor/exercises/${ex.id}`} className="btn btn-secondary btn-sm">
-                              Manage
-                            </Link>
-                            <Link href={`/instructor/exercises/${ex.id}/submissions`} className="btn btn-ghost btn-sm">
-                              Submissions
-                            </Link>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+          <ExercisesTable exercises={exercises} />
 
           {/* Live monitor */}
           <div className="card">

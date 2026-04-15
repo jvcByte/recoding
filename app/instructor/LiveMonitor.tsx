@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import SearchInput from '@/app/components/SearchInput';
 
 type PasteEvent = {
   type: 'paste';
@@ -81,6 +82,8 @@ export default function LiveMonitor() {
   const [events, setEvents] = useState<LiveEvent[]>([]);
   const [connected, setConnected] = useState(false);
   const [lastHeartbeat, setLastHeartbeat] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
   const esRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
@@ -103,24 +106,51 @@ export default function LiveMonitor() {
     return () => { es.close(); esRef.current = null; };
   }, []);
 
+  const filtered = events.filter((ev) => {
+    const username = getUsername(ev).toLowerCase();
+    const exercise = getExercise(ev).toLowerCase();
+    const matchSearch = !search || username.includes(search.toLowerCase()) || exercise.includes(search.toLowerCase());
+    const matchType = typeFilter === 'all' || ev.type === typeFilter;
+    return matchSearch && matchType;
+  });
+
   return (
     <div style={{ fontSize: 12 }}>
       {/* Status bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
         <span style={{ width: 7, height: 7, borderRadius: '50%', background: connected ? 'var(--green)' : 'var(--red)', display: 'inline-block', boxShadow: connected ? '0 0 6px var(--green)' : 'none' }} />
         <span style={{ fontSize: 11, color: connected ? 'var(--green)' : 'var(--text3)', fontWeight: 600 }}>
           {connected ? 'Connected' : 'Disconnected'}
         </span>
         {lastHeartbeat && (
-          <span style={{ color: 'var(--text3)', fontSize: 10, marginLeft: 'auto' }}>
-            heartbeat {lastHeartbeat}
-          </span>
+          <span style={{ color: 'var(--text3)', fontSize: 10 }}>heartbeat {lastHeartbeat}</span>
         )}
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <SearchInput value={search} onChange={setSearch} placeholder="Filter by participant…" style={{ minWidth: 180 }} />
+          <select
+            className="form-select"
+            style={{ fontSize: 11, padding: '0.3rem 0.6rem', minWidth: 110 }}
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+          >
+            <option value="all">All types</option>
+            <option value="paste">Paste</option>
+            <option value="focus">Focus</option>
+            <option value="keystroke_batch">Keystrokes</option>
+          </select>
+          {events.length > 0 && (
+            <button className="btn btn-ghost btn-sm" onClick={() => setEvents([])}>Clear</button>
+          )}
+        </div>
       </div>
 
       {events.length === 0 ? (
         <div style={{ color: 'var(--text3)', padding: '2rem 0', textAlign: 'center' }}>
           Waiting for events…
+        </div>
+      ) : filtered.length === 0 ? (
+        <div style={{ color: 'var(--text3)', padding: '2rem 0', textAlign: 'center' }}>
+          No events match your filter.
         </div>
       ) : (
         <div className="table-wrap">
@@ -129,13 +159,13 @@ export default function LiveMonitor() {
               <tr>
                 <th>Time</th>
                 <th>Type</th>
-                <th>Username</th>
+                <th>Participant</th>
                 <th>Exercise</th>
                 <th>Details</th>
               </tr>
             </thead>
             <tbody>
-              {events.map((ev, i) => (
+              {filtered.map((ev, i) => (
                 <tr key={i}>
                   <td style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text3)', whiteSpace: 'nowrap' }}>
                     {getTime(ev)}

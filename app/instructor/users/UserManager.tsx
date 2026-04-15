@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Plus, X, KeyRound, Trash2, AlertTriangle } from 'lucide-react';
+import SearchInput from '@/app/components/SearchInput';
 
 interface User { id: string; username: string; role: string; created_at: string; }
 interface Props { initialUsers: User[]; currentUserId: string; }
@@ -21,6 +22,12 @@ export default function UserManager({ initialUsers, currentUserId }: Props) {
   const [resetting, setResetting] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+
+  const filtered = users.filter((u) =>
+    u.username.toLowerCase().includes(search.toLowerCase()) ||
+    u.role.toLowerCase().includes(search.toLowerCase())
+  );
 
   async function handleCreate() {
     if (!newUsername.trim()) { toast.error('Username is required'); return; }
@@ -115,7 +122,10 @@ export default function UserManager({ initialUsers, currentUserId }: Props) {
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <div className="card-header" style={{ padding: '0.85rem 1rem', marginBottom: 0 }}>
           <span className="card-title">All Users</span>
-          <span className="badge badge-gray">{users.length}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <SearchInput value={search} onChange={setSearch} placeholder="Search users…" />
+            <span className="badge badge-gray">{filtered.length}</span>
+          </div>
         </div>
         <div className="table-wrap">
           <table>
@@ -123,7 +133,9 @@ export default function UserManager({ initialUsers, currentUserId }: Props) {
               <tr><th>Username</th><th>Role</th><th>Created</th><th>Actions</th></tr>
             </thead>
             <tbody>
-              {users.map((user) => (
+              {filtered.length === 0 ? (
+                <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--text3)', padding: '2rem' }}>No users match "{search}"</td></tr>
+              ) : filtered.map((user) => (
                 <>
                   <tr key={user.id}>
                     <td style={{ fontWeight: 600, color: 'var(--text)' }}>{user.username}</td>

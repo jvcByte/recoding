@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { sql } from '@/lib/db';
 import Navbar from '@/app/components/Navbar';
+import SubmissionsTable from './SubmissionsTable';
 
 interface Props { params: { id: string }; }
 interface SubmissionRow {
@@ -11,8 +12,6 @@ interface SubmissionRow {
   is_final: boolean; is_flagged: boolean; flag_reasons: string[] | null;
   submitted_at: string; username: string;
 }
-
-import { Flag } from 'lucide-react';
 
 export default async function SubmissionListPage({ params }: Props) {
   const { id: exerciseId } = params;
@@ -37,11 +36,7 @@ export default async function SubmissionListPage({ params }: Props) {
 
   return (
     <div className="page">
-      <Navbar
-        username={session?.user?.name ?? undefined}
-        role="instructor"
-        links={[{ href: '/instructor', label: 'Dashboard' }]}
-      />
+      <Navbar username={session?.user?.name ?? undefined} role="instructor" />
       <main className="main">
         <div className="container">
           <div className="breadcrumb">
@@ -77,55 +72,9 @@ export default async function SubmissionListPage({ params }: Props) {
             </div>
           </div>
 
-          {submissions.length === 0 ? (
-            <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-              <p style={{ color: 'var(--text3)' }}>No submissions yet.</p>
-            </div>
-          ) : (
-            <div className="card" style={{ padding: 0 }}>
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Participant</th>
-                      <th>Q#</th>
-                      <th>Status</th>
-                      <th>Flag</th>
-                      <th>Submitted</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {submissions.map((sub) => (
-                      <tr key={sub.id}>
-                        <td style={{ fontWeight: 600 }}>{sub.username}</td>
-                        <td style={{ color: 'var(--text2)' }}>{sub.question_index + 1}</td>
-                        <td>
-                          <span className={`badge ${sub.is_final ? 'badge-green' : 'badge-gray'}`}>
-                            {sub.is_final ? 'Final' : 'Draft'}
-                          </span>
-                        </td>
-                        <td>
-                          {sub.is_flagged
-                            ? <span className="badge badge-red" title={sub.flag_reasons?.join(', ')} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Flag size={10} /> Flagged</span>
-                            : <span style={{ color: 'var(--text3)' }}>—</span>
-                          }
-                        </td>
-                        <td style={{ color: 'var(--text3)', fontSize: 12 }}>
-                          {new Date(sub.submitted_at).toLocaleString()}
-                        </td>
-                        <td>
-                          <Link href={`/instructor/submissions/${sub.id}`} className="btn btn-secondary btn-sm">
-                            Review
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+          <div className="card">
+            <SubmissionsTable submissions={submissions} />
+          </div>
         </div>
       </main>
     </div>
