@@ -6,7 +6,7 @@ import type * as Monaco from 'monaco-editor';
 import { Play } from 'lucide-react';
 import { toast } from 'sonner';
 
-// Match the site's dark palette
+// Define both themes matching the site palette
 loader.init().then((monaco) => {
   monaco.editor.defineTheme('recoding-dark', {
     base: 'vs-dark',
@@ -28,7 +28,6 @@ loader.init().then((monaco) => {
       'editorLineNumber.foreground':            '#2d3a52',
       'editorLineNumber.activeForeground':      '#6366f1',
       'editorCursor.foreground':                '#6366f1',
-      'editorIndentGuide.background':           '#1a2235',
       'editorWidget.background':                '#111520',
       'editorWidget.border':                    '#1e2d45',
       'editorSuggestWidget.background':         '#111520',
@@ -40,6 +39,40 @@ loader.init().then((monaco) => {
       'editorHoverWidget.border':               '#1e2d45',
       'scrollbarSlider.background':             '#1e2d4560',
       'scrollbarSlider.hoverBackground':        '#1e2d4590',
+    },
+  });
+
+  monaco.editor.defineTheme('recoding-light', {
+    base: 'vs',
+    inherit: true,
+    rules: [
+      { token: 'comment',   foreground: '78716c', fontStyle: 'italic' },
+      { token: 'keyword',   foreground: '4f46e5' },
+      { token: 'string',    foreground: '059669' },
+      { token: 'number',    foreground: 'd97706' },
+      { token: 'type',      foreground: '0369a1' },
+      { token: 'function',  foreground: '7c3aed' },
+      { token: 'delimiter', foreground: '78716c' },
+    ],
+    colors: {
+      'editor.background':                      '#faf7f2',
+      'editor.foreground':                      '#1c1917',
+      'editor.lineHighlightBackground':         '#ede8df',
+      'editor.selectionBackground':             '#6366f130',
+      'editorLineNumber.foreground':            '#a8a29e',
+      'editorLineNumber.activeForeground':      '#4f46e5',
+      'editorCursor.foreground':                '#4f46e5',
+      'editorWidget.background':                '#faf7f2',
+      'editorWidget.border':                    '#e4ddd2',
+      'editorSuggestWidget.background':         '#faf7f2',
+      'editorSuggestWidget.border':             '#e4ddd2',
+      'editorSuggestWidget.foreground':         '#1c1917',
+      'editorSuggestWidget.selectedBackground': '#ede8df',
+      'editorSuggestWidget.highlightForeground':'#4f46e5',
+      'editorHoverWidget.background':           '#faf7f2',
+      'editorHoverWidget.border':               '#e4ddd2',
+      'scrollbarSlider.background':             '#e4ddd260',
+      'scrollbarSlider.hoverBackground':        '#e4ddd290',
     },
   });
 });
@@ -73,6 +106,7 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle');
   const [stdin, setStdin] = useState('');
   const [showStdin, setShowStdin] = useState(false);
+  const [editorTheme, setEditorTheme] = useState('recoding-dark');
 
   const codeRef = useRef(code);
   codeRef.current = code;
@@ -83,7 +117,17 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
   const focusLostAtRef = useRef<string | null>(null);
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
 
-  // ── Reset on question change ──────────────────────────────────────────────
+  // Sync Monaco theme with site theme
+  useEffect(() => {
+    function syncTheme() {
+      const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+      setEditorTheme(isDark ? 'recoding-dark' : 'recoding-light');
+    }
+    syncTheme();
+    const observer = new MutationObserver(syncTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => observer.disconnect();
+  }, []);
   useEffect(() => {
     setCode(starter);
     setResult(null);
@@ -300,7 +344,7 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
           value={code}
           onChange={(val) => { setCode(val ?? ''); setSaveStatus('idle'); }}
           onMount={handleEditorMount}
-          theme="recoding-dark"
+          theme={editorTheme}
           options={{
             fontSize: 14,
             minimap: { enabled: false },
