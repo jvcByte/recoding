@@ -124,7 +124,10 @@ export default function ExerciseManager({ exercise: initial, sessions, assignedU
           </div>
         </div>
         <button
-          onClick={() => patch({ start_time: startTime || null, end_time: endTime || null, duration_limit: durationLimit || null })}
+          onClick={() => {
+            const toUTC = (local: string) => local ? new Date(local).toISOString() : null;
+            patch({ start_time: toUTC(startTime), end_time: toUTC(endTime), duration_limit: durationLimit || null });
+          }}
           disabled={saving}
           className="btn btn-primary"
         >

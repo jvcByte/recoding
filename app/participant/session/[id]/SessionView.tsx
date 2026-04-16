@@ -196,7 +196,7 @@ export default function SessionView({ exerciseId }: { exerciseId: string }) {
       )}
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
         <ProgressBar
           currentIndex={sessionState.current_question_index}
           viewingIndex={activeIndex}
@@ -204,7 +204,9 @@ export default function SessionView({ exerciseId }: { exerciseId: string }) {
           questionStatuses={sessionState.question_statuses}
           onNavigate={(i) => setViewingIndex(i === sessionState.current_question_index ? null : i)}
         />
-        <TimerDisplay remainingSeconds={displayRemainingSeconds} warningLowTime={displayRemainingSeconds !== null && displayRemainingSeconds < 300} />
+        <div style={{ flexShrink: 0 }}>
+          <TimerDisplay remainingSeconds={displayRemainingSeconds} warningLowTime={displayRemainingSeconds !== null && displayRemainingSeconds < 300} />
+        </div>
       </div>
 
       {/* Question */}
