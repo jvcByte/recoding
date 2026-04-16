@@ -5,7 +5,6 @@
   --bg2:      #0c0f14;
   --bg3:      #111520;
   --bg4:      #161b28;
-  --bg5:      #ababab;
   --border:   rgba(255,255,255,0.06);
   --border2:  rgba(255,255,255,0.1);
   --accent:   #6366f1;
@@ -23,6 +22,28 @@
   --radius:   8px;
   --radius-sm:4px;
   --radius-lg:14px;
+}
+
+/* ── Light (cream) theme ── */
+[data-theme="light"] {
+  --bg:       #f5f0e8;
+  --bg2:      #faf7f2;
+  --bg3:      #ede8df;
+  --bg4:      #e4ddd2;
+  --border:   rgba(0,0,0,0.08);
+  --border2:  rgba(0,0,0,0.14);
+  --accent:   #4f46e5;
+  --accent2:  #6366f1;
+  --accent3:  #4338ca;
+  --glow:     rgba(99,102,241,0.15);
+  --glow2:    rgba(99,102,241,0.06);
+  --green:    #059669;
+  --red:      #dc2626;
+  --orange:   #d97706;
+  --text:     #1c1917;
+  --text2:    #44403c;
+  --text3:    #78716c;
+  --text4:    #a8a29e;
 }
 
 html { height: 100%; }
@@ -73,6 +94,9 @@ a:hover { color: var(--text); }
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-bottom: 1px solid var(--border);
+}
+[data-theme="light"] .navbar {
+  background: rgba(245,240,232,0.9);
 }
 .navbar-inner {
   display: flex;
@@ -455,6 +479,13 @@ tbody tr:hover td { color: var(--text); }
     0 0 0 1px rgba(99,102,241,0.1),
     0 24px 64px rgba(0,0,0,0.6),
     0 0 80px rgba(99,102,241,0.06);
+}
+[data-theme="light"] .login-card {
+  background: var(--bg2);
+  box-shadow: 0 0 0 1px var(--border2), 0 24px 64px rgba(0,0,0,0.12);
+}
+[data-theme="light"] .login-page::before {
+  background: radial-gradient(ellipse, rgba(99,102,241,0.06) 0%, transparent 65%);
 }
 .login-logo { text-align: center; margin-bottom: 2.25rem; }
 .login-logo-icon { display: flex; justify-content: center; margin-bottom: 0.75rem; }
