@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import LogoutButton from './LogoutButton';
+import ThemeToggle from './ThemeToggle';
 import { GraduationCap, User, Hexagon } from 'lucide-react';
 
 interface NavLink { href: string; label: string; }
@@ -43,6 +44,7 @@ export default function Navbar({ username, role, links }: Props) {
                 {username}
               </span>
             )}
+            <ThemeToggle />
             <LogoutButton />
           </div>
         </div>

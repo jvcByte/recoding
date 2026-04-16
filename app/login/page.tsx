@@ -3,6 +3,7 @@
 import { useState, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
+import ThemeToggle from '@/app/components/ThemeToggle';
 
 import { Hexagon } from 'lucide-react';
 import { toast } from 'sonner';
@@ -48,6 +49,9 @@ function LoginForm() {  const searchParams = useSearchParams();
 
   return (
     <div className="login-page">
+      <div style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 10 }}>
+        <ThemeToggle />
+      </div>
       <div className="login-card">
         <div className="login-logo">
           <div className="login-logo-icon" style={{ marginBottom: '0.75rem' }}>
