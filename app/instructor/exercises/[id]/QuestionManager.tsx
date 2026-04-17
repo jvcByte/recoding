@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
-import { Plus, Trash2, Edit3, ChevronDown, ChevronUp, Save, X, Upload, FileText } from 'lucide-react';
+import { Plus, Trash2, Edit3, ChevronDown, ChevronUp, Save, X, Upload, FileText, RefreshCw } from 'lucide-react';
 
 interface Question {
   id: string;
@@ -14,22 +14,32 @@ interface Question {
   starter: string;
 }
 
+const CODE_EXERCISE_SLUGS = new Set(['ascii-art', 'ascii-art-web', 'go-reloaded']);
+
+function defaultsForSlug(slug: string): { type: string; language: string } {
+  if (CODE_EXERCISE_SLUGS.has(slug)) return { type: 'code', language: 'go' };
+  return { type: 'written', language: 'text' };
+}
+
 interface Props {
   exerciseId: string;
+  exerciseSlug: string;
   initialQuestions: Question[];
 }
 
-export default function QuestionManager({ exerciseId, initialQuestions }: Props) {
+export default function QuestionManager({ exerciseId, exerciseSlug, initialQuestions }: Props) {
+  const defaults = defaultsForSlug(exerciseSlug);
   const [questions, setQuestions] = useState<Question[]>(initialQuestions);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Partial<Question>>({});
   const [adding, setAdding] = useState(false);
-  const [newQ, setNewQ] = useState({ text: '', type: 'written', language: 'text', starter: '' });
+  const [newQ, setNewQ] = useState({ text: '', type: defaults.type, language: defaults.language, starter: '' });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [uploadType, setUploadType] = useState('written');
-  const [uploadLang, setUploadLang] = useState('text');
+  const [syncing, setSyncing] = useState(false);
+  const [uploadType, setUploadType] = useState(defaults.type);
+  const [uploadLang, setUploadLang] = useState(defaults.language);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -60,8 +70,23 @@ export default function QuestionManager({ exerciseId, initialQuestions }: Props)
     }
   }
 
-  function handleDrop(e: React.DragEvent) {
-    e.preventDefault();
+  async function syncFromFiles() {
+    if (!confirm('Sync questions from docs files? This will replace all current questions.')) return;
+    setSyncing(true);
+    try {
+      const res = await fetch(`/api/instructor/exercises/${exerciseId}/questions/sync`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Sync failed');
+      toast.success(`Synced ${data.synced} questions from files`);
+      window.location.reload();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Sync failed');
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  function handleDrop(e: React.DragEvent) {    e.preventDefault();
     setDragOver(false);
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
@@ -224,7 +249,12 @@ export default function QuestionManager({ exerciseId, initialQuestions }: Props)
       <div className="card">
         <div className="card-header">
           <span className="card-title">Bulk Import from Markdown</span>
-          <span className="badge badge-orange">Replaces all questions</span>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <button className="btn btn-sm btn-secondary" disabled={syncing} onClick={syncFromFiles} title="Re-read questions from docs/ files and update the database">
+              <RefreshCw size={12} /> {syncing ? 'Syncing…' : 'Sync from files'}
+            </button>
+            <span className="badge badge-orange">Replaces all questions</span>
+          </div>
         </div>
         <p style={{ fontSize: 12, color: 'var(--text3)', marginBottom: '1rem', lineHeight: 1.7 }}>
           Upload a <code style={{ background: 'var(--bg3)', border: '1px solid var(--border)', padding: '1px 5px', borderRadius: 3, color: 'var(--accent2)' }}>.md</code> file

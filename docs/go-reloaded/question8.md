@@ -1,10 +1,6 @@
 ## Drill 9 — Wire the Full Pipeline
 
-Combine all your functions into a complete transformation pipeline:
-
-```go
-func transform(text string) string
-```
+Combine all your functions into a complete transformation pipeline. Write `transform(text string) string` that applies all rules in order:
 
 Apply transformations in this exact order:
 1. `convertHex` + `convertBin`

@@ -1,10 +1,6 @@
 ## Drill 1 — Read Input Text from Stdin
 
-Write a function that reads the entire input from stdin and returns it as a string:
-
-```go
-func readInput() string
-```
+Write a function `readInput() string` that reads the entire input from stdin and returns it as a string:
 
 **Requirements:**
 - Read all lines from stdin

@@ -1,10 +1,6 @@
 ## Drill 7 — Fix Single-Quote Formatting
 
-Write a function that removes spaces between single-quote marks and the words they wrap:
-
-```go
-func fixSingleQuotes(text string) string
-```
+Write a function `fixSingleQuotes(text string) string` that removes spaces between single-quote marks and the words they wrap:
 
 **Requirements:**
 - Find pairs of `'` marks

@@ -1,10 +1,6 @@
 ## Drill 2 — Convert `(hex)` Tags
 
-Write a function that finds every `(hex)` tag and replaces the word immediately before it with its decimal value:
-
-```go
-func convertHex(text string) string
-```
+Write a function `convertHex(text string) string` that finds every `(hex)` tag and replaces the word immediately before it with its decimal value:
 
 **Requirements:**
 - The word before `(hex)` is always a valid hexadecimal number

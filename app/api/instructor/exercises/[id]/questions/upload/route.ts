@@ -51,9 +51,13 @@ export async function POST(
 
   const content = await file.text();
 
-  // Detect question type from form field
-  const questionType = (formData.get('type') as string) ?? 'written';
-  const language = (formData.get('language') as string) ?? 'text';
+  const CODE_EXERCISE_SLUGS = new Set(['ascii-art', 'ascii-art-web', 'go-reloaded']);
+  const exerciseSlug = exerciseRows[0].slug as string;
+  const slugDefault = CODE_EXERCISE_SLUGS.has(exerciseSlug) ? { type: 'code', language: 'go' } : { type: 'written', language: 'text' };
+
+  // Detect question type from form field, falling back to slug-based default
+  const questionType = (formData.get('type') as string) || slugDefault.type;
+  const language = (formData.get('language') as string) || slugDefault.language;
 
   const parts = splitMarkdownQuestions(content);
 
