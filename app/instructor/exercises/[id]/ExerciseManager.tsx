@@ -56,9 +56,11 @@ export default function ExerciseManager({ exercise: initial, sessions, assignedU
   }
 
   async function toggleAssignment(userId: string, currentlyAssigned: boolean) {
-    const newIds = currentlyAssigned
-      ? assignedUsers.filter((u) => u.id !== userId).map((u) => u.id)
-      : [...assignedUsers.map((u) => u.id), userId];
+    const newIds = userId === '__all__'
+      ? allParticipants.map((u) => u.id)
+      : currentlyAssigned
+        ? assignedUsers.filter((u) => u.id !== userId).map((u) => u.id)
+        : [...assignedUsers.map((u) => u.id), userId];
     setSaving(true);
     try {
       const res = await fetch(`/api/instructor/exercises/${exercise.id}`, {
@@ -139,7 +141,18 @@ export default function ExerciseManager({ exercise: initial, sessions, assignedU
       <div className="card">
         <div className="card-header">
           <span className="card-title">Participants</span>
-          <span className="badge badge-purple">{assignedUsers.length} assigned</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span className="badge badge-purple">{assignedUsers.length} assigned</span>
+            {assignedUsers.length < allParticipants.length && (
+              <button
+                onClick={() => toggleAssignment('__all__', false)}
+                disabled={saving}
+                className="btn btn-sm btn-primary"
+              >
+                Assign All
+              </button>
+            )}
+          </div>
         </div>
         {allParticipants.length === 0 ? (
           <p style={{ color: 'var(--text3)', fontSize: 13 }}>No participant accounts exist yet.</p>

@@ -1,5 +1,56 @@
-### Question 2
+## Drill 2 — Convert `(hex)` Tags
 
-You need to handle `(up)`, `(low)`, and `(cap)` — each with an optional number modifier like `(up, 3)`.
+Write a function that finds every `(hex)` tag and replaces the word immediately before it with its decimal value:
 
-**Walk through your implementation decision: did you handle the simple case `(up)` and the numbered case `(up, 3)` in the same code path or separately? What made that the right call? What would break if you tried to force both into a single handler?**
+```go
+func convertHex(text string) string
+```
+
+**Requirements:**
+- The word before `(hex)` is always a valid hexadecimal number
+- Replace that word with its decimal equivalent
+- Remove the `(hex)` tag from the output
+
+**Starter:**
+```go
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+)
+
+func readInput() string {
+	var lines []string
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	return strings.Join(lines, "\n")
+}
+
+func convertHex(text string) string {
+	// TODO: implement
+	return text
+}
+
+func main() {
+	text := readInput()
+	fmt.Println(convertHex(text))
+}
+```
+
+**Stdin:**
+```
+1E (hex) files were added
+```
+
+**Expected output:**
+```
+30 files were added
+```
+
+**Hint:** Use `strconv.ParseInt(s, 16, 64)` to parse hex, and `strconv.FormatInt(n, 10)` to convert back to decimal.

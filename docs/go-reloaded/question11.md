@@ -1,5 +1,41 @@
-### Question 12
+## Drill 12 — Test Single-Quote Formatting
 
-The spec says to use only standard Go packages. You need to do string manipulation, file I/O, number base conversion, and pattern matching.
+Use your full pipeline. Verify single-quote pairs are formatted correctly for both single-word and multi-word cases.
 
-**Map out which standard Go packages you used for which rules — and for at least one rule, explain why you chose that package's approach over writing the logic manually. What does the standard library give you that a hand-rolled solution might get wrong?**
+**Starter:**
+```go
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"strings"
+)
+
+func readInput() string {
+	var lines []string
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	return strings.Join(lines, "\n")
+}
+
+// TODO: paste your full transform pipeline here
+
+func main() {
+	text := readInput()
+	fmt.Print(transform(text))
+}
+```
+
+**Stdin:**
+```
+I am exactly how they describe me: ' awesome '
+```
+
+**Expected output:**
+```
+I am exactly how they describe me: 'awesome'
+```

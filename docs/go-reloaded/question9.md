@@ -1,11 +1,41 @@
-### Question 10
+## Drill 10 — Test Hex and Bin Together
 
-You process punctuation spacing as a final pass after all other transformations. Your auditor runs:
+Use your full pipeline from Drill 9. Test that hex and bin conversions work together in the same input.
 
+**Starter:**
+```go
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"strings"
+)
+
+func readInput() string {
+	var lines []string
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	return strings.Join(lines, "\n")
+}
+
+// TODO: paste your full transform pipeline here
+
+func main() {
+	text := readInput()
+	fmt.Print(transform(text))
+}
 ```
-Ready, set, go (up) !
+
+**Stdin:**
+```
+Simply add 42 (hex) and 10 (bin) and you will see the result is 68.
 ```
 
-Your output is `Ready, set, GO !` — the space before `!` wasn't removed.
-
-**Why did the final punctuation pass miss this? What does this reveal about the order in which your transformations run — and what would you need to change in your pipeline so that punctuation cleanup always fires after case transformations, not before?**
+**Expected output:**
+```
+Simply add 66 and 2 and you will see the result is 68.
+```

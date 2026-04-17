@@ -1,5 +1,56 @@
-### Question 3
+## Drill 3 — Convert `(bin)` Tags
 
-The spec says `(hex)` and `(bin)` should replace the word **before** them with its decimal conversion. The word before is always guaranteed to be a valid hex or binary number.
+Write a function that finds every `(bin)` tag and replaces the word immediately before it with its decimal value:
 
-**How did you locate "the word before" in your implementation? Did you split the string, use an index, scan backwards? Walk through your exact approach and explain why it's correct — and where it would fail if the guarantee about valid input was removed.**
+```go
+func convertBin(text string) string
+```
+
+**Requirements:**
+- The word before `(bin)` is always a valid binary number
+- Replace that word with its decimal equivalent
+- Remove the `(bin)` tag from the output
+
+**Starter:**
+```go
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+)
+
+func readInput() string {
+	var lines []string
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	return strings.Join(lines, "\n")
+}
+
+func convertBin(text string) string {
+	// TODO: implement
+	return text
+}
+
+func main() {
+	text := readInput()
+	fmt.Println(convertBin(text))
+}
+```
+
+**Stdin:**
+```
+It has been 10 (bin) years
+```
+
+**Expected output:**
+```
+It has been 2 years
+```
+
+**Hint:** Use `strconv.ParseInt(s, 2, 64)` to parse binary.

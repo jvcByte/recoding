@@ -1,7 +1,46 @@
-### Question 1
+## Drill 1 — Read Input Text from Stdin
 
-Your program receives two arguments: an input filename and an output filename. You read the input file, process it, and write to the output.
+Write a function that reads the entire input from stdin and returns it as a string:
 
-A classmate reads the entire file into memory as one string and processes it all at once. You consider reading it line by line instead.
+```go
+func readInput() string
+```
 
-**Which approach did you choose — and why? What are the trade-offs between whole-file-in-memory vs line-by-line for a text transformation tool like this? What breaks in each approach when the input file is very large?**
+**Requirements:**
+- Read all lines from stdin
+- Join them back with newlines
+- Return the full text as a single string
+
+**Starter:**
+```go
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"strings"
+)
+
+func readInput() string {
+	// TODO: implement
+	return ""
+}
+
+func main() {
+	text := readInput()
+	fmt.Print(text)
+}
+```
+
+**Stdin (paste into the stdin box):**
+```
+hello world
+this is a test
+```
+
+**Expected output:**
+```
+hello world
+this is a test
+```
