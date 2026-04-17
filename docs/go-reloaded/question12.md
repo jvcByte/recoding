@@ -1,7 +1,41 @@
-### Question 13
+## Drill 13 — Test the Article Rule
 
-Your auditor is another student. The spec says: *"We advise you to create your own tests for yourself and for when you will correct your auditees."*
+Use your full pipeline. Verify `a` → `an` works for vowels and `h`.
 
-You need to write tests that are genuinely useful — not just the four sample inputs from the spec.
+**Starter:**
+```go
+package main
 
-**Design a test suite for go-reloaded. What categories of input would you test beyond the given samples? List at least 6 specific test cases — including at least two that target interactions between rules (e.g., a word that needs both `(cap)` and punctuation cleanup) — and explain what each one is designed to catch.**
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"strings"
+)
+
+func readInput() string {
+	var lines []string
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	return strings.Join(lines, "\n")
+}
+
+// TODO: paste your full transform pipeline here
+
+func main() {
+	text := readInput()
+	fmt.Print(transform(text))
+}
+```
+
+**Stdin:**
+```
+There it was. A amazing rock!
+```
+
+**Expected output:**
+```
+There it was. An amazing rock!
+```

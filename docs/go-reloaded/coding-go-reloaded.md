@@ -1,179 +1,254 @@
-# go-reloaded — Scenario-Based Re-Coding Questions
+# go-reloaded — Hands-On Coding Drills
 > Derived strictly from the go-reloaded project brief
-> Format: Scenario-based | Tests: Implementation decisions, Debugging & problem-solving, Design thinking
-> Rules: Answer each question in your own words. No AI-generated responses.
+> Format: Small focused coding tasks, build up to full implementation
+> Rules: Write every function yourself. Test each drill before moving to the next.
+> Standard Go packages only — no external libraries.
 
 ---
 
-## 🔧 Implementation Decisions
+## Drill 1 — Read Input and Write Output Files
 
-*Why you built it this way.*
+Write a Go program that:
 
----
-
-### Question 1
-
-Your program receives two arguments: an input filename and an output filename. You read the input file, process it, and write to the output.
-
-A classmate reads the entire file into memory as one string and processes it all at once. You consider reading it line by line instead.
-
-**Which approach did you choose — and why? What are the trade-offs between whole-file-in-memory vs line-by-line for a text transformation tool like this? What breaks in each approach when the input file is very large?**
-
----
-
-### Question 2
-
-You need to handle `(up)`, `(low)`, and `(cap)` — each with an optional number modifier like `(up, 3)`.
-
-**Walk through your implementation decision: did you handle the simple case `(up)` and the numbered case `(up, 3)` in the same code path or separately? What made that the right call? What would break if you tried to force both into a single handler?**
-
----
-
-### Question 3
-
-The spec says `(hex)` and `(bin)` should replace the word **before** them with its decimal conversion. The word before is always guaranteed to be a valid hex or binary number.
-
-**How did you locate "the word before" in your implementation? Did you split the string, use an index, scan backwards? Walk through your exact approach and explain why it's correct — and where it would fail if the guarantee about valid input was removed.**
-
----
-
-### Question 4
-
-Rule 8 says: convert `a` to `an` if the next word starts with a vowel or `h`.
-
-But the rule says *every instance of `a`* — not just standalone `a`. So `"a amazing"` → `"an amazing"`, but what about `"a hard-boiled egg"` or `"a hour"`?
-
-**How did you define "a" in your implementation — exact match only, or something broader? What edge cases did you have to consciously decide to include or exclude, and how does your code enforce that decision?**
-
----
-
-### Question 5
-
-Your program must handle punctuation spacing for `.`, `,`, `!`, `?`, `:`, `;` — close to the previous word, space before the next. But grouped punctuation like `...` or `!?` must stay together and be treated as a single unit.
-
-**This is two different rules that look similar. How did you implement both without the grouped-punctuation rule accidentally triggering the single-punctuation rule — or vice versa? What was the order of operations in your processing pipeline, and why does order matter here?**
-
----
-
-## 🐛 Debugging & Problem-Solving
-
-*What broke and how you fixed it.*
-
----
-
-### Question 6
-
-You run your program on the sample input:
-
-```
-it (cap) was the best of times, it was the worst of times (up) , it was the age of foolishness (cap, 6)
+```go
+func readFile(path string) (string, error)
+func writeFile(path string, content string) error
 ```
 
-Your output has `(cap, 6)` correctly uppercasing 6 words — but it's counting the comma as one of the 6 words.
+- `readFile` reads the entire file at `path` and returns its content as a string
+- `writeFile` writes `content` to the file at `path`, creating it if it doesn't exist
+- Both return a meaningful error if the operation fails
 
-**What went wrong in your word-counting logic? Walk through the bug: where in your code did punctuation get treated as a word, and what specific fix resolves it without breaking the single-word `(cap)` case?**
+**Usage:**
+```bash
+go run . input.txt output.txt
+```
+
+**Test it:**
+```bash
+echo "hello world" > input.txt
+go run . input.txt output.txt
+cat output.txt
+# → hello world
+```
+
+**Edge cases:**
+- Input file does not exist → print error and exit with non-zero code
+- Output path is not writable → print error and exit
 
 ---
 
-### Question 7
+## Drill 2 — Convert `(hex)` and `(bin)` Tags
 
-You implement the single-quote rule: `' awesome '` → `'awesome'`. It works on the sample input. Then your auditor tests it with:
+Write a Go function:
 
+```go
+func convertBases(text string) string
 ```
+
+- Finds every `(hex)` tag and replaces the word immediately before it with its decimal value
+- Finds every `(bin)` tag and replaces the word immediately before it with its decimal value
+- Removes the tag itself from the output
+
+**Test cases:**
+```
+"1E (hex) files were added"   → "30 files were added"
+"It has been 10 (bin) years"  → "It has been 2 years"
+"Simply add 42 (hex) and 10 (bin) and you will see the result is 68." → "Simply add 66 and 2 and you will see the result is 68."
+```
+
+**What you need:**
+- `strconv.ParseInt(s, 16, 64)` for hex
+- `strconv.ParseInt(s, 2, 64)` for binary
+- `strconv.FormatInt(n, 10)` to convert back to decimal string
+
+---
+
+## Drill 3 — Single-Word Case Modifiers: `(up)`, `(low)`, `(cap)`
+
+Write a Go function:
+
+```go
+func applySingleCaseModifiers(text string) string
+```
+
+- `(up)` → converts the word immediately before it to UPPERCASE
+- `(low)` → converts the word immediately before it to lowercase
+- `(cap)` → capitalizes the first letter of the word immediately before it
+
+**Test cases:**
+```
+"Ready, set, go (up) !"              → "Ready, set, GO !"
+"I should stop SHOUTING (low)"       → "I should stop shouting"
+"Welcome to the Brooklyn bridge (cap)" → "Welcome to the Brooklyn Bridge"
+```
+
+**What you need:**
+- `strings.ToUpper`, `strings.ToLower`
+- Manual capitalize: `strings.ToUpper(s[:1]) + strings.ToLower(s[1:])`
+
+---
+
+## Drill 4 — Multi-Word Case Modifiers: `(up, N)`, `(low, N)`, `(cap, N)`
+
+Extend your solution from Drill 3 to handle the numbered variant:
+
+```go
+func applyCaseModifiers(text string) string
+```
+
+- `(up, 3)` → converts the 3 words before the tag to uppercase
+- `(low, 2)` → converts the 2 words before the tag to lowercase
+- `(cap, 6)` → capitalizes the first letter of the 6 words before the tag
+- Single `(up)` / `(low)` / `(cap)` still works (defaults to 1 word)
+
+**Test cases:**
+```
+"This is so exciting (up, 2)"   → "This is SO EXCITING"
+"it was the age of foolishness (cap, 6)" → "It Was The Age Of Foolishness"
+"IT WAS THE (low, 3) winter"    → "it was the winter"
+```
+
+**Important:** count only actual words — punctuation attached to a word counts as part of that word, not a separate word.
+
+---
+
+## Drill 5 — Punctuation Spacing
+
+Write a Go function:
+
+```go
+func fixPunctuation(text string) string
+```
+
+- Single punctuation marks (`.`, `,`, `!`, `?`, `:`, `;`) must be placed directly after the previous word with no space, and have a space before the next word
+- Grouped punctuation (`...`, `!?`, `!!`, etc.) must be treated as a single unit — same rule applies
+
+**Test cases:**
+```
+"I was sitting over there ,and then BAMM !!"  → "I was sitting over there, and then BAMM!!"
+"Punctuation tests are ... kinda boring ,what do you think ?" → "Punctuation tests are... kinda boring, what do you think?"
+"Ready, set, GO !"  → "Ready, set, GO!"
+```
+
+**Order matters:** process grouped punctuation before single punctuation, otherwise `...` gets broken apart.
+
+---
+
+## Drill 6 — Single-Quote Formatting
+
+Write a Go function:
+
+```go
+func fixSingleQuotes(text string) string
+```
+
+- Pairs of `'` marks should have no space between them and the words they wrap
+- Works for both single-word and multi-word content between the quotes
+
+**Test cases:**
+```
+"I am exactly how they describe me: ' awesome '"
+→ "I am exactly how they describe me: 'awesome'"
+
 "As Elton John said: ' I am the most well-known homosexual in the world '"
+→ "As Elton John said: 'I am the most well-known homosexual in the world'"
 ```
 
-Your output incorrectly puts the closing `'` after `world'` with a space before it.
-
-**Trace the bug. What assumption did your implementation make about single quotes that broke on multi-word input? How do you fix it — and how do you test that the fix works for both the one-word and multi-word cases?**
+**Hint:** find the first `'`, strip the space after it; find the matching closing `'`, strip the space before it.
 
 ---
 
-### Question 8
+## Drill 7 — `a` → `an` Rule
 
-You process `(hex)` conversion and it works for most inputs. Then your auditor runs:
+Write a Go function:
 
-```
-1E (hex) files were added
+```go
+func fixArticles(text string) string
 ```
 
-Your program crashes with a parsing error.
+- Every standalone `a` or `A` followed by a word starting with a vowel (`a`, `e`, `i`, `o`, `u`) or `h` should become `an` / `An`
 
-**What went wrong? Walk through what `strconv.ParseInt("1E", 16, 64)` actually requires — and what your code likely missed about case sensitivity in hex input. How do you fix it, and what other hex edge cases should you now test for?**
-
----
-
-### Question 9
-
-Your program passes all your own tests. During the audit, your auditor feeds it a file where a `(low, 5)` modifier appears near the beginning of a sentence — and there are fewer than 5 words before it.
-
-**What does your program do in this case — crash, silently process fewer words, or something else? Walk through what the correct behavior should be according to the spec, and how your implementation handles (or should handle) the boundary condition of `n > available words`.**
-
----
-
-### Question 10
-
-You process punctuation spacing as a final pass after all other transformations. Your auditor runs:
-
+**Test cases:**
 ```
-Ready, set, go (up) !
+"There it was. A amazing rock!"          → "There it was. An amazing rock!"
+"There is no greater agony than bearing a untold story inside you." → "There is no greater agony than bearing an untold story inside you."
+"I need a hero"                          → "I need a hero"   ← h rule
+"She ate a apple"                        → "She ate an apple"
 ```
 
-Your output is `Ready, set, GO !` — the space before `!` wasn't removed.
-
-**Why did the final punctuation pass miss this? What does this reveal about the order in which your transformations run — and what would you need to change in your pipeline so that punctuation cleanup always fires after case transformations, not before?**
+**Important:** only match exact standalone `a` — not `a` inside another word like `cat` or `amazing`.
 
 ---
 
-## 🏗️ Design Thinking
+## Drill 8 — Wire Everything Together
 
-*Architecture, trade-offs, pattern choices.*
+Build the full pipeline in `main`:
 
----
+1. Read args: `go run . input.txt output.txt`
+2. Read input file
+3. Apply transformations in this order:
+   - `convertBases` (hex/bin)
+   - `applyCaseModifiers` (up/low/cap with optional N)
+   - `fixPunctuation`
+   - `fixSingleQuotes`
+   - `fixArticles`
+4. Write result to output file
 
-### Question 11
+**Test with all spec examples:**
 
-You have 8 transformation rules to implement. Two approaches are on the table:
+```bash
+# Test 1
+echo "it (cap) was the best of times, it was the worst of times (up) , it was the age of wisdom, it was the age of foolishness (cap, 6) , it was the epoch of belief, it was the epoch of incredulity, it was the season of Light, it was the season of darkness, it was the spring of hope, IT WAS THE (low, 3) winter of despair." > sample.txt
+go run . sample.txt result.txt
+cat result.txt
+# Expected: It was the best of times, it was the worst of TIMES, it was the age of wisdom, It Was The Age Of Foolishness, it was the epoch of belief, it was the epoch of incredulity, it was the season of Light, it was the season of darkness, it was the spring of hope, it was the winter of despair.
 
-- **Approach A:** One large function that scans the text and handles every rule in a single pass.
-- **Approach B:** A pipeline — separate functions for each rule, applied in sequence.
+# Test 2
+echo "Simply add 42 (hex) and 10 (bin) and you will see the result is 68." > sample.txt
+go run . sample.txt result.txt
+cat result.txt
+# Expected: Simply add 66 and 2 and you will see the result is 68.
 
-**Which did you choose — and what are the real trade-offs? Think specifically about: what happens when two rules interact (e.g., `(up)` fires on a word that also needs punctuation cleanup), how easy it is to add a 9th rule later, and how you'd write unit tests for each approach.**
+# Test 3
+echo "There is no greater agony than bearing a untold story inside you." > sample.txt
+go run . sample.txt result.txt
+cat result.txt
+# Expected: There is no greater agony than bearing an untold story inside you.
 
----
-
-### Question 12
-
-The spec says to use only standard Go packages. You need to do string manipulation, file I/O, number base conversion, and pattern matching.
-
-**Map out which standard Go packages you used for which rules — and for at least one rule, explain why you chose that package's approach over writing the logic manually. What does the standard library give you that a hand-rolled solution might get wrong?**
-
----
-
-### Question 13
-
-Your auditor is another student. The spec says: *"We advise you to create your own tests for yourself and for when you will correct your auditees."*
-
-You need to write tests that are genuinely useful — not just the four sample inputs from the spec.
-
-**Design a test suite for go-reloaded. What categories of input would you test beyond the given samples? List at least 6 specific test cases — including at least two that target interactions between rules (e.g., a word that needs both `(cap)` and punctuation cleanup) — and explain what each one is designed to catch.**
-
----
-
-### Question 14
-
-The spec guarantees that when `(hex)` or `(bin)` is used, the word before it will always be a valid number in that base. But in a real production tool, you can't make that guarantee.
-
-**Without changing the spec's required behavior for valid inputs, how would you design your error handling for invalid inputs? What should the program output, exit with, or log — and how does Go's idiomatic error handling pattern (`if err != nil`) shape the way you structure this decision across your codebase?**
-
----
-
-## Reflection Prompt (Bonus)
-
-After completing go-reloaded, you look back at your code. You notice that the section handling `(low, n)`, `(up, n)`, and `(cap, n)` is almost identical three times — just with a different string transformation applied.
-
-**What refactoring would eliminate the duplication? Write the signature of a Go function that could replace all three, and explain what you'd pass as an argument to make it work for all cases. What does this refactoring reveal about the design principle your original implementation missed?**
+# Test 4
+echo "Punctuation tests are ... kinda boring ,what do you think ?" > sample.txt
+go run . sample.txt result.txt
+cat result.txt
+# Expected: Punctuation tests are... kinda boring, what do you think?
+```
 
 ---
 
-*All answers must be written in your own words. Responses identified as AI-generated will be rejected.*
+## Drill 9 — Edge Case Gauntlet
+
+Write a test file `transform_test.go` covering:
+
+```go
+func TestHexConversion(t *testing.T)       // "1E (hex)" → "30"
+func TestBinConversion(t *testing.T)       // "10 (bin)" → "2"
+func TestUpSingle(t *testing.T)            // "go (up)" → "GO"
+func TestCapMultiple(t *testing.T)         // "(cap, 6)" on 6 words
+func TestLowFewerWordsThanN(t *testing.T)  // (low, 5) with only 2 words before → apply to available words
+func TestGroupedPunctuation(t *testing.T)  // "..." stays together
+func TestSingleQuoteMultiWord(t *testing.T)// ' I am great ' → 'I am great'
+func TestArticleH(t *testing.T)            // "a hero" → "a hero" (h rule)
+func TestArticleVowel(t *testing.T)        // "a apple" → "an apple"
+func TestCombinedRules(t *testing.T)       // (up) + punctuation in same sentence
+```
+
+Run with:
+```bash
+go test ./...
+```
+
+All tests must pass before you consider the project complete.
+
+---
+
+*Write every function yourself. Do not copy. Test locally before moving to the next drill.*

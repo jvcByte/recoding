@@ -1,11 +1,53 @@
-### Question 6
+## Drill 6 — Fix Punctuation Spacing
 
-You run your program on the sample input:
+Write a function that corrects spacing around punctuation marks:
 
+```go
+func fixPunctuation(text string) string
 ```
-it (cap) was the best of times, it was the worst of times (up) , it was the age of foolishness (cap, 6)
+
+**Requirements:**
+- Single punctuation marks (`.`, `,`, `!`, `?`, `:`, `;`) must sit directly after the previous word with no space before them
+- Grouped punctuation (`...`, `!?`, `!!`, etc.) must be treated as a single unit — same rule applies
+- Process grouped punctuation before single punctuation to avoid breaking groups apart
+
+**Starter:**
+```go
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"strings"
+)
+
+func readInput() string {
+	var lines []string
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	return strings.Join(lines, "\n")
+}
+
+func fixPunctuation(text string) string {
+	// TODO: implement
+	return text
+}
+
+func main() {
+	text := readInput()
+	fmt.Println(fixPunctuation(text))
+}
 ```
 
-Your output has `(cap, 6)` correctly uppercasing 6 words — but it's counting the comma as one of the 6 words.
+**Stdin:**
+```
+Punctuation tests are ... kinda boring ,what do you think ?
+```
 
-**What went wrong in your word-counting logic? Walk through the bug: where in your code did punctuation get treated as a word, and what specific fix resolves it without breaking the single-word `(cap)` case?**
+**Expected output:**
+```
+Punctuation tests are... kinda boring, what do you think?
+```

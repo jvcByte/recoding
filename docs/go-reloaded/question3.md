@@ -1,7 +1,56 @@
-### Question 4
+## Drill 4 — Single-Word `(up)`, `(low)`, `(cap)`
 
-Rule 8 says: convert `a` to `an` if the next word starts with a vowel or `h`.
+Write a function that handles single-word case modifiers:
 
-But the rule says *every instance of `a`* — not just standalone `a`. So `"a amazing"` → `"an amazing"`, but what about `"a hard-boiled egg"` or `"a hour"`?
+```go
+func applySingleCaseModifiers(text string) string
+```
 
-**How did you define "a" in your implementation — exact match only, or something broader? What edge cases did you have to consciously decide to include or exclude, and how does your code enforce that decision?**
+**Requirements:**
+- `(up)` → converts the word immediately before it to UPPERCASE
+- `(low)` → converts the word immediately before it to lowercase
+- `(cap)` → capitalizes the first letter of the word immediately before it (rest lowercase)
+- Remove the tag from the output
+
+**Starter:**
+```go
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"strings"
+)
+
+func readInput() string {
+	var lines []string
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	return strings.Join(lines, "\n")
+}
+
+func applySingleCaseModifiers(text string) string {
+	// TODO: implement
+	return text
+}
+
+func main() {
+	text := readInput()
+	fmt.Println(applySingleCaseModifiers(text))
+}
+```
+
+**Stdin:**
+```
+Ready, set, go (up) !
+```
+
+**Expected output:**
+```
+Ready, set, GO !
+```
+
+**Hint:** To capitalize: `strings.ToUpper(s[:1]) + strings.ToLower(s[1:])`

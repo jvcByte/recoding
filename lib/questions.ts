@@ -28,7 +28,7 @@ function resolveExerciseDir(slug: string): string {
   return path.join(base, slug);
 }
 
-const CODE_EXERCISE_SLUGS = new Set(['ascii-art', 'ascii-art-web']);
+const CODE_EXERCISE_SLUGS = new Set(['ascii-art', 'ascii-art-web', 'go-reloaded']);
 
 export function loadExercise(slug: string): ExerciseContent {
   const dir = resolveExerciseDir(slug);
