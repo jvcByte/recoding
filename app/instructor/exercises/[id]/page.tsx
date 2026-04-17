@@ -103,6 +103,7 @@ export default async function ExercisePage({ params }: Props) {
             </div>
             <QuestionManager
               exerciseId={id}
+              exerciseSlug={exercise.slug}
               initialQuestions={questionRows as { id: string; question_index: number; text: string; type: 'written' | 'code'; language: string; starter: string }[]}
             />
           </div>

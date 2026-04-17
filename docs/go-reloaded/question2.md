@@ -1,10 +1,6 @@
 ## Drill 3 — Convert `(bin)` Tags
 
-Write a function that finds every `(bin)` tag and replaces the word immediately before it with its decimal value:
-
-```go
-func convertBin(text string) string
-```
+Write a function `convertBin(text string) string` that finds every `(bin)` tag and replaces the word immediately before it with its decimal value:
 
 **Requirements:**
 - The word before `(bin)` is always a valid binary number

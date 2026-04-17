@@ -1,10 +1,6 @@
 ## Drill 4 — Single-Word `(up)`, `(low)`, `(cap)`
 
-Write a function that handles single-word case modifiers:
-
-```go
-func applySingleCaseModifiers(text string) string
-```
+Write a function `applySingleCaseModifiers(text string) string` that handles single-word case modifiers:
 
 **Requirements:**
 - `(up)` → converts the word immediately before it to UPPERCASE

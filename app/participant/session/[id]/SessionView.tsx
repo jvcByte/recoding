@@ -8,7 +8,7 @@ import { AlertTriangle } from 'lucide-react';
 
 interface QuestionStatus { question_index: number; has_draft: boolean; is_final: boolean; }
 interface SessionState {
-  session_id: string; current_question_index: number; question_count: number;
+  session_id: string; exercise_slug: string; current_question_index: number; question_count: number;
   remaining_seconds: number | null; warning_low_time: boolean; question_statuses: QuestionStatus[];
 }
 interface Question {
@@ -226,6 +226,7 @@ export default function SessionView({ exerciseId }: { exerciseId: string }) {
           language={question.language}
           starter={question.starter}
           isClosed={sessionClosed}
+          exerciseSlug={sessionState.exercise_slug}
         />
       ) : (
         <ResponseEditor

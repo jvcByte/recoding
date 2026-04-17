@@ -97,15 +97,16 @@ interface Props {
   language: string;
   starter: string;
   isClosed: boolean;
+  exerciseSlug: string;
 }
 
-export default function CodeEditor({ sessionId, questionIndex, language, starter, isClosed }: Props) {
+export default function CodeEditor({ sessionId, questionIndex, language, starter, isClosed, exerciseSlug }: Props) {
   const [code, setCode] = useState(starter);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<RunResult | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle');
   const [stdin, setStdin] = useState('');
-  const [showStdin, setShowStdin] = useState(false);
+  const [showStdin, setShowStdin] = useState(exerciseSlug === 'go-reloaded');
   const [editorTheme, setEditorTheme] = useState('recoding-dark');
 
   const codeRef = useRef(code);
@@ -142,7 +143,7 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
         const res = await fetch(`/api/submissions/${sessionId}/restore?q=${questionIndex}`);
         if (!res.ok) return;
         const data = await res.json();
-        if (data.response_text) {
+        if (data.response_text && data.response_text.trim().length > starter.trim().length) {
           setCode(data.response_text);
           lastSavedRef.current = data.response_text;
           prevLengthRef.current = data.response_text.length;
@@ -289,7 +290,7 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
       const res = await fetch('/api/run-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: codeRef.current, language, stdin }),
+        body: JSON.stringify({ code: codeRef.current, language, stdin, exercise: exerciseSlug }),
       });
       const data = await res.json();
       setResult(res.ok ? data as RunResult : { stdout: '', stderr: data.error ?? 'Unknown error', compile_output: '', exit_code: 1 });
@@ -300,7 +301,7 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
     }
   }
 
-  const hasOutput = result && (result.stdout || result.stderr || result.compile_output);
+  const hasOutput = result !== null;
   const success = result?.exit_code === 0;
 
   return (
@@ -330,7 +331,7 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
             rows={3}
             value={stdin}
             onChange={(e) => setStdin(e.target.value)}
-            placeholder="Input to pass via stdin…"
+            placeholder={exerciseSlug === 'go-reloaded' ? 'Type your test input here…' : 'Input to pass via stdin…'}
             style={{ minHeight: 'unset', fontFamily: 'monospace', fontSize: 13 }}
           />
         </div>
@@ -379,10 +380,14 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
               <pre style={{ margin: 0, fontSize: 12, color: '#fca5a5', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{result.compile_output}</pre>
             </div>
           )}
-          {result?.stdout && (
+          {result?.stdout ? (
             <div style={{ padding: '0.75rem', borderBottom: result?.stderr ? '1px solid var(--border)' : undefined }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--green)', marginBottom: '0.4rem', textTransform: 'uppercase' }}>stdout</div>
               <pre style={{ margin: 0, fontSize: 12, color: 'var(--text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 300, overflowY: 'auto' }}>{result.stdout}</pre>
+            </div>
+          ) : !result?.stderr && !result?.compile_output && (
+            <div style={{ padding: '0.75rem' }}>
+              <span style={{ fontSize: 12, color: 'var(--text3)', fontStyle: 'italic' }}>No output — your program ran but printed nothing. Did you forget to provide stdin?</span>
             </div>
           )}
           {result?.stderr && (

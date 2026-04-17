@@ -19,7 +19,7 @@ export async function GET(
   // Check exercise-level start_time BEFORE creating a session
   // This way participants who haven't started yet are blocked at the exercise level
   const exerciseRows = await sql`
-    SELECT start_time, end_time, duration_limit, question_count
+    SELECT slug, start_time, end_time, duration_limit, question_count
     FROM exercises WHERE id = ${exerciseId} LIMIT 1
   `;
   if (exerciseRows.length === 0) {
@@ -117,6 +117,7 @@ export async function GET(
 
   return NextResponse.json({
     session_id: row.id,
+    exercise_slug: exercise.slug as string,
     current_question_index: row.current_question_index as number,
     question_count: row.question_count as number,
     remaining_seconds: remainingSeconds,

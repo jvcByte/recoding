@@ -34,14 +34,14 @@ export async function POST(req: NextRequest) {
     }, { status: 503 });
   }
 
-  let body: { code: string; language: string; stdin?: string };
+  let body: { code: string; language: string; stdin?: string; exercise?: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { code, language, stdin = '' } = body;
+  const { code, language, stdin = '', exercise = '' } = body;
 
   if (!code || typeof code !== 'string') {
     return NextResponse.json({ error: 'code is required' }, { status: 400 });
@@ -53,8 +53,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Code exceeds 64KB limit' }, { status: 413 });
   }
 
-  // Auto-inject banner as stdin for Go exercises if no stdin provided
-  const effectiveStdin = stdin || (language === 'go' ? getBannerContent() : '');
+  const BANNER_EXERCISE_SLUGS = new Set(['ascii-art', 'ascii-art-web']);
+  // Auto-inject banner as stdin only for banner exercises when no stdin provided
+  const effectiveStdin = stdin || (language === 'go' && BANNER_EXERCISE_SLUGS.has(exercise) ? getBannerContent() : '');
 
   try {
     const res = await fetch(`${RUNNER_URL}/run`, {

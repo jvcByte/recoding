@@ -1,10 +1,6 @@
 ## Drill 6 — Fix Punctuation Spacing
 
-Write a function that corrects spacing around punctuation marks:
-
-```go
-func fixPunctuation(text string) string
-```
+Write a function `fixPunctuation(text string) string` that corrects spacing around punctuation marks:
 
 **Requirements:**
 - Single punctuation marks (`.`, `,`, `!`, `?`, `:`, `;`) must sit directly after the previous word with no space before them

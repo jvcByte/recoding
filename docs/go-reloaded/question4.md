@@ -1,10 +1,6 @@
 ## Drill 5 — Multi-Word `(up, N)`, `(low, N)`, `(cap, N)`
 
-Extend your case modifier to handle the numbered variant:
-
-```go
-func applyCaseModifiers(text string) string
-```
+Extend your case modifier to handle the numbered variant. Write `applyCaseModifiers(text string) string`:
 
 **Requirements:**
 - `(up, 3)` → converts the 3 words before the tag to uppercase

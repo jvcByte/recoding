@@ -1,10 +1,6 @@
 ## Drill 8 — Fix `a` → `an` Article Rule
 
-Write a function that converts `a` to `an` when the next word starts with a vowel or `h`:
-
-```go
-func fixArticles(text string) string
-```
+Write a function `fixArticles(text string) string` that converts `a` to `an` when the next word starts with a vowel or `h`:
 
 **Requirements:**
 - Every standalone `a` or `A` followed by a word starting with `a`, `e`, `i`, `o`, `u`, or `h` (case-insensitive) becomes `an` / `An`
