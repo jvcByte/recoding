@@ -1,5 +1,6 @@
 /**
- * Bulk-creates participant accounts from docs/users/users.md.
+ * Bulk-creates users from docs/users/users.md.
+ * Supports INSTRUCTOR and PARTICIPANT sections — assigns role accordingly.
  * Safe to re-run — skips existing usernames.
  *
  * Usage: npx tsx scripts/create-users.ts
@@ -14,25 +15,29 @@ async function run() {
   const filePath = path.join(process.cwd(), 'docs', 'users', 'users.md');
   const content = fs.readFileSync(filePath, 'utf-8');
 
-  // Parse markdown table rows — skip header and separator lines
-  const rows = content
-    .split('\n')
-    .filter((line) => line.startsWith('|') && !line.includes('---') && !line.includes('Username'))
-    .map((line) => {
-      const cols = line.split('|').map((c) => c.trim()).filter(Boolean);
-      return { username: cols[0], password: cols[1] };
-    })
-    .filter((r) => r.username && r.password);
+  // Parse sections — role is set by the last INSTRUCTOR/PARTICIPANT heading seen
+  const users: { username: string; password: string; role: string }[] = [];
+  let currentRole = 'participant';
 
-  console.log(`Found ${rows.length} users to create...\n`);
+  for (const line of content.split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed === 'INSTRUCTOR') { currentRole = 'instructor'; continue; }
+    if (trimmed === 'PARTICIPANT') { currentRole = 'participant'; continue; }
+    if (!trimmed.startsWith('|') || trimmed.includes('---') || trimmed.toLowerCase().includes('username')) continue;
+
+    const cols = trimmed.split('|').map((c) => c.trim()).filter(Boolean);
+    if (cols.length >= 2) users.push({ username: cols[0], password: cols[1], role: currentRole });
+  }
+
+  console.log(`Found ${users.length} users to process...\n`);
 
   let created = 0;
   let skipped = 0;
 
-  for (const { username, password } of rows) {
+  for (const { username, password, role } of users) {
     const existing = await sql`SELECT id FROM users WHERE username = ${username} LIMIT 1`;
     if (existing.length > 0) {
-      console.log(`  Skipped (exists): ${username}`);
+      console.log(`  Skipped (exists): ${username} [${role}]`);
       skipped++;
       continue;
     }
@@ -40,9 +45,9 @@ async function run() {
     const hash = await bcrypt.hash(password, 12);
     await sql`
       INSERT INTO users (username, password_hash, role)
-      VALUES (${username}, ${hash}, 'participant')
+      VALUES (${username}, ${hash}, ${role})
     `;
-    console.log(`  Created: ${username}`);
+    console.log(`  Created: ${username} [${role}]`);
     created++;
   }
 
