@@ -10,9 +10,11 @@ const defaultLinks: Record<string, NavLink[]> = {
   instructor: [
     { href: '/instructor', label: 'Dashboard' },
     { href: '/instructor/users', label: 'Users' },
+    { href: '/instructor/feedback', label: 'Feedback' },
   ],
   participant: [
     { href: '/participant', label: 'Exercises' },
+    { href: '/participant/feedback', label: 'Feedback' },
     { href: '/participant/settings', label: 'Settings' },
   ],
 };
