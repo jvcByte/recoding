@@ -145,6 +145,31 @@ export default function SessionView({ exerciseId }: { exerciseId: string }) {
     finally { setAdvancing(false); }
   }, [exerciseId, fetchSession]);
 
+  const handleSubmitFinal = useCallback(async () => {
+    if (!sessionState) return;
+    setAdvancing(true); setAdvanceError(null);
+    try {
+      // Finalise the last question's submission
+      const sessionId = sessionState.session_id;
+      const questionIndex = sessionState.current_question_index;
+      const res = await fetch(`/api/submissions/${sessionId}/final`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question_index: questionIndex }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        // 409 = already final, that's fine — still close
+        if ((d as { error?: string }).error !== 'Submission is already final') {
+          setAdvanceError((d as { error?: string }).error ?? 'Failed to submit.');
+          return;
+        }
+      }
+      setSessionClosed(true);
+    } catch { setAdvanceError('Network error.'); }
+    finally { setAdvancing(false); }
+  }, [sessionState]);
+
   useEffect(() => { (async () => { setLoading(true); await fetchSession(); setLoading(false); })(); }, [fetchSession]);
   useEffect(() => { if (sessionState) fetchQuestion(activeIndex); }, [sessionState, activeIndex, fetchQuestion]);
   // Server sync every 10s
@@ -253,6 +278,19 @@ export default function SessionView({ exerciseId }: { exerciseId: string }) {
               className="btn btn-primary btn-lg"
             >
               {advancing ? 'Advancing…' : 'Next Question →'}
+            </button>
+          </div>
+        )}
+
+        {isViewingCurrent && sessionState.current_question_index + 1 === sessionState.question_count && !sessionClosed && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
+            {advanceError && <span style={{ fontSize: 12, color: 'var(--red)' }}>{advanceError}</span>}
+            <button
+              onClick={handleSubmitFinal}
+              disabled={sessionClosed || advancing}
+              className="btn btn-success btn-lg"
+            >
+              {advancing ? 'Submitting…' : 'Submit Final Answer ✓'}
             </button>
           </div>
         )}

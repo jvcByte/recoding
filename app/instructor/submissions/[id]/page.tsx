@@ -3,13 +3,14 @@ import { notFound } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { sql } from '@/lib/db';
+import { Flag } from 'lucide-react';
 import TypingReplay from './TypingReplay';
 import ReviewNote from './ReviewNote';
+import FlagDismissal from './FlagDismissal';
 import Navbar from '@/app/components/Navbar';
+import { formatWAT } from '@/lib/format';
 
 interface Props { params: { id: string }; }
-
-import { Flag, Check } from 'lucide-react';
 
 export default async function SubmissionDetailPage({ params }: Props) {
   const { id: submissionId } = params;
@@ -17,7 +18,8 @@ export default async function SubmissionDetailPage({ params }: Props) {
 
   const subRows = await sql`
     SELECT sub.id, sub.session_id, sub.question_index, sub.response_text,
-           sub.is_final, sub.is_flagged, sub.flag_reasons, sub.review_note, sub.submitted_at,
+           sub.is_final, sub.is_flagged, sub.flag_reasons, sub.dismissed_flags,
+           sub.review_note, sub.submitted_at,
            s.exercise_id, u.username
     FROM submissions sub
     JOIN sessions s ON s.id = sub.session_id
@@ -29,12 +31,13 @@ export default async function SubmissionDetailPage({ params }: Props) {
   const sub = subRows[0] as {
     id: string; session_id: string; question_index: number; response_text: string;
     is_final: boolean; is_flagged: boolean; flag_reasons: string[] | null;
+    dismissed_flags: { reason: string; dismissed_by: string; dismissed_at: string }[];
     review_note: string | null; submitted_at: string; exercise_id: string; username: string;
   };
 
   const [autosaveRows, pasteRows, focusRows, editRows] = await Promise.all([
     sql`SELECT id, response_text, saved_at FROM autosave_history WHERE submission_id = ${submissionId} ORDER BY saved_at ASC`,
-    sql`SELECT id, char_count, occurred_at FROM paste_events WHERE submission_id = ${submissionId} ORDER BY occurred_at ASC`,
+    sql`SELECT id, char_count, pasted_text, occurred_at FROM paste_events WHERE submission_id = ${submissionId} ORDER BY occurred_at ASC`,
     sql`SELECT id, lost_at, regained_at, duration_ms FROM focus_events WHERE session_id = ${sub.session_id} ORDER BY lost_at ASC`,
     sql`SELECT id, event_type, position, char_count, occurred_at FROM edit_events WHERE submission_id = ${submissionId} ORDER BY occurred_at ASC`,
   ]);
@@ -59,7 +62,7 @@ export default async function SubmissionDetailPage({ params }: Props) {
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
             <div className="page-header" style={{ marginBottom: 0 }}>
               <h1 className="page-title">{sub.username}</h1>
-              <p className="page-sub">Question {sub.question_index + 1} · {new Date(sub.submitted_at).toLocaleString()}</p>
+              <p className="page-sub">Question {sub.question_index + 1} · {formatWAT(sub.submitted_at)}</p>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
               {sub.is_flagged && <span className="badge badge-red" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Flag size={10} /> Flagged</span>}
@@ -72,9 +75,17 @@ export default async function SubmissionDetailPage({ params }: Props) {
             </div>
           </div>
 
-          {sub.is_flagged && sub.flag_reasons && sub.flag_reasons.length > 0 && (
-            <div className="alert alert-warning" style={{ marginBottom: '1.25rem' }}>
-              <strong>Flag reasons:</strong> {sub.flag_reasons.join(' · ')}
+          {sub.flag_reasons && sub.flag_reasons.length > 0 && (
+            <div className="card" style={{ marginBottom: '1.25rem' }}>
+              <div className="card-header">
+                <span className="card-title">Flags</span>
+                <span className="badge badge-red">{sub.flag_reasons.length - (sub.dismissed_flags?.length ?? 0)} active</span>
+              </div>
+              <FlagDismissal
+                submissionId={sub.id}
+                flagReasons={sub.flag_reasons}
+                dismissedFlags={sub.dismissed_flags ?? []}
+              />
             </div>
           )}
 
@@ -128,13 +139,16 @@ export default async function SubmissionDetailPage({ params }: Props) {
                 </div>
                 <div className="table-wrap">
                   <table>
-                    <thead><tr><th>#</th><th>Chars Pasted</th><th>Occurred At</th></tr></thead>
+                    <thead><tr><th>#</th><th>Chars Pasted</th><th>Pasted Text</th><th>Occurred At</th></tr></thead>
                     <tbody>
-                      {(pasteRows as { id: string; char_count: number; occurred_at: string }[]).map((ev, i) => (
+                      {(pasteRows as { id: string; char_count: number; pasted_text: string | null; occurred_at: string }[]).map((ev, i) => (
                         <tr key={ev.id}>
                           <td style={{ color: 'var(--text3)' }}>{i + 1}</td>
                           <td style={{ color: 'var(--red)', fontWeight: 700 }}>{ev.char_count}</td>
-                          <td style={{ color: 'var(--text3)' }}>{new Date(ev.occurred_at).toLocaleString()}</td>
+                          <td style={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12, color: 'var(--text2)', fontFamily: 'monospace' }}>
+                            {ev.pasted_text ?? <span style={{ color: 'var(--text3)' }}>—</span>}
+                          </td>
+                          <td style={{ color: 'var(--text3)' }}>{formatWAT(ev.occurred_at)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -157,8 +171,8 @@ export default async function SubmissionDetailPage({ params }: Props) {
                       {(focusRows as { id: string; lost_at: string; regained_at: string | null; duration_ms: number | null }[]).map((ev, i) => (
                         <tr key={ev.id}>
                           <td style={{ color: 'var(--text3)' }}>{i + 1}</td>
-                          <td style={{ color: 'var(--text3)' }}>{new Date(ev.lost_at).toLocaleString()}</td>
-                          <td style={{ color: 'var(--text3)' }}>{ev.regained_at ? new Date(ev.regained_at).toLocaleString() : '—'}</td>
+                          <td style={{ color: 'var(--text3)' }}>{formatWAT(ev.lost_at)}</td>
+                          <td style={{ color: 'var(--text3)' }}>{ev.regained_at ? formatWAT(ev.regained_at) : '—'}</td>
                           <td style={{ color: ev.duration_ms != null ? 'var(--orange)' : 'var(--text3)', fontWeight: ev.duration_ms != null ? 600 : 400 }}>
                             {ev.duration_ms != null ? `${(ev.duration_ms / 1000).toFixed(1)}s` : '—'}
                           </td>

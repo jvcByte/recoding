@@ -19,11 +19,16 @@ export default async function ExercisePage({ params }: Props) {
   const exerciseRows = await sql`
     SELECT e.id, e.slug, e.title, e.enabled, e.question_count,
            e.start_time, e.end_time, e.duration_limit,
+           e.pass_mark, e.min_questions_required, e.flag_fails, e.max_paste_chars, e.max_focus_loss,
+           e.min_edit_events, e.min_response_length,
            COALESCE(json_agg(ea.user_id) FILTER (WHERE ea.user_id IS NOT NULL), '[]') AS assigned_user_ids
     FROM exercises e
     LEFT JOIN exercise_assignments ea ON ea.exercise_id = e.id
     WHERE e.id = ${id}
-    GROUP BY e.id, e.slug, e.title, e.enabled, e.question_count, e.start_time, e.end_time, e.duration_limit
+    GROUP BY e.id, e.slug, e.title, e.enabled, e.question_count,
+             e.start_time, e.end_time, e.duration_limit,
+             e.pass_mark, e.min_questions_required, e.flag_fails, e.max_paste_chars, e.max_focus_loss,
+             e.min_edit_events, e.min_response_length
   `;
 
   if (exerciseRows.length === 0) notFound();
@@ -40,6 +45,13 @@ export default async function ExercisePage({ params }: Props) {
     start_time: raw.start_time ? String(raw.start_time) : null,
     end_time: raw.end_time ? String(raw.end_time) : null,
     duration_limit: raw.duration_limit ? intervalToString(raw.duration_limit) : null,
+    pass_mark: raw.pass_mark != null ? Number(raw.pass_mark) : null,
+    min_questions_required: raw.min_questions_required != null ? Number(raw.min_questions_required) : null,
+    flag_fails: (raw.flag_fails as boolean) ?? false,
+    max_paste_chars: raw.max_paste_chars != null ? Number(raw.max_paste_chars) : null,
+    max_focus_loss: raw.max_focus_loss != null ? Number(raw.max_focus_loss) : null,
+    min_edit_events: raw.min_edit_events != null ? Number(raw.min_edit_events) : null,
+    min_response_length: raw.min_response_length != null ? Number(raw.min_response_length) : null,
   };
 
   const sessionRows = await sql`
@@ -88,12 +100,6 @@ export default async function ExercisePage({ params }: Props) {
               {' · '}{exercise.question_count} question{exercise.question_count > 1 ? 's' : ''}
             </p>
           </div>
-          <ExerciseManager
-            exercise={exercise}
-            sessions={sessions}
-            assignedUsers={assignedUsers as { id: string; username: string }[]}
-            allParticipants={allParticipants as { id: string; username: string }[]}
-          />
 
           {/* Question management */}
           <div className="card" style={{ marginTop: '1.5rem' }}>
@@ -107,6 +113,13 @@ export default async function ExercisePage({ params }: Props) {
               initialQuestions={questionRows as { id: string; question_index: number; text: string; type: 'written' | 'code'; language: string; starter: string }[]}
             />
           </div>
+
+          <ExerciseManager
+            exercise={exercise}
+            sessions={sessions}
+            assignedUsers={assignedUsers as { id: string; username: string }[]}
+            allParticipants={allParticipants as { id: string; username: string }[]}
+          />
         </div>
       </main>
     </div>

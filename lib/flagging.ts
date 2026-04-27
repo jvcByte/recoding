@@ -14,23 +14,46 @@ const MIN_RESPONSE_LENGTH_FOR_EDIT_CHECK = parseInt(process.env.FLAG_MIN_RESPONS
  * whether it should be flagged and the reasons why.
  *
  * Flags if:
- * - paste events > 0
+ * - paste events with char_count > max_paste_chars threshold (or any paste if no threshold)
  * - focus-loss events > FOCUS_LOSS_THRESHOLD (default 3)
  * - edit events < 10 for a response longer than 200 characters
  */
 export async function evaluateFlags(submissionId: string): Promise<FlagResult> {
   const flag_reasons: string[] = [];
 
-  // Count paste events for this submission
-  const pasteResult = await sql`
-    SELECT COUNT(*)::int AS count
-    FROM paste_events
-    WHERE submission_id = ${submissionId}
+  // Look up the exercise's max_paste_chars threshold for this submission
+  const thresholdResult = await sql`
+    SELECT e.max_paste_chars, e.max_focus_loss, e.min_edit_events, e.min_response_length
+    FROM submissions sub
+    JOIN sessions sess ON sess.id = sub.session_id
+    JOIN exercises e ON e.id = sess.exercise_id
+    WHERE sub.id = ${submissionId}
+    LIMIT 1
   `;
+  const maxPasteChars: number | null = (thresholdResult[0]?.max_paste_chars as number | null) ?? null;
+  const maxFocusLoss: number | null = (thresholdResult[0]?.max_focus_loss as number | null) ?? null;
+  const focusLossThreshold = maxFocusLoss ?? FOCUS_LOSS_THRESHOLD;
+  const minEditEvents = (thresholdResult[0]?.min_edit_events as number | null) ?? MIN_EDIT_EVENTS;
+  const minResponseLength = (thresholdResult[0]?.min_response_length as number | null) ?? MIN_RESPONSE_LENGTH_FOR_EDIT_CHECK;
+
+  // Count paste events that exceed the threshold (or all paste events if no threshold set)
+  const pasteResult = maxPasteChars !== null
+    ? await sql`
+        SELECT COUNT(*)::int AS count
+        FROM paste_events
+        WHERE submission_id = ${submissionId}
+          AND char_count > ${maxPasteChars}
+      `
+    : await sql`
+        SELECT COUNT(*)::int AS count
+        FROM paste_events
+        WHERE submission_id = ${submissionId}
+      `;
   const pasteCount: number = (pasteResult[0]?.count as number) ?? 0;
 
   if (pasteCount > 0) {
-    flag_reasons.push(`paste_detected: ${pasteCount} paste event(s) recorded`);
+    const thresholdNote = maxPasteChars !== null ? ` (>${maxPasteChars} chars each)` : '';
+    flag_reasons.push(`paste_detected: ${pasteCount} paste event(s) recorded${thresholdNote}`);
   }
 
   // Count focus-loss events for the session that owns this submission
@@ -42,9 +65,9 @@ export async function evaluateFlags(submissionId: string): Promise<FlagResult> {
   `;
   const focusLossCount: number = (focusResult[0]?.count as number) ?? 0;
 
-  if (focusLossCount > FOCUS_LOSS_THRESHOLD) {
+  if (focusLossCount > focusLossThreshold) {
     flag_reasons.push(
-      `focus_loss_exceeded: ${focusLossCount} focus-loss event(s) (threshold: ${FOCUS_LOSS_THRESHOLD})`
+      `focus_loss_exceeded: ${focusLossCount} focus-loss event(s) (threshold: ${focusLossThreshold})`
     );
   }
 
@@ -62,23 +85,20 @@ export async function evaluateFlags(submissionId: string): Promise<FlagResult> {
     const responseText: string = (editResult[0].response_text as string) ?? '';
 
     if (
-      responseText.length > MIN_RESPONSE_LENGTH_FOR_EDIT_CHECK &&
-      editCount < MIN_EDIT_EVENTS
+      responseText.length > minResponseLength &&
+      editCount < minEditEvents
     ) {
       flag_reasons.push(
         `low_edit_count: only ${editCount} edit event(s) for a ${responseText.length}-character response`
       );
     }
   } else {
-    // No edit events at all — check if the response is long enough to warrant flagging
     const submissionResult = await sql`
-      SELECT response_text
-      FROM submissions
-      WHERE id = ${submissionId}
+      SELECT response_text FROM submissions WHERE id = ${submissionId}
     `;
     const responseText: string = (submissionResult[0]?.response_text as string) ?? '';
 
-    if (responseText.length > MIN_RESPONSE_LENGTH_FOR_EDIT_CHECK) {
+    if (responseText.length > minResponseLength) {
       flag_reasons.push(
         `low_edit_count: 0 edit event(s) for a ${responseText.length}-character response`
       );

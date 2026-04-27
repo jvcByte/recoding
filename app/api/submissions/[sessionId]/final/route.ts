@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { sql } from '@/lib/db';
+import { recalculateSessionScore } from '@/lib/scoring';
 
 export async function POST(
   req: NextRequest,
@@ -67,6 +68,31 @@ export async function POST(
     SET is_final = true
     WHERE id = ${submission.id}
   `;
+
+  // Check if all questions for this session are now final; if so, close and score
+  const exerciseRows = await sql`
+    SELECT e.question_count
+    FROM sessions s
+    JOIN exercises e ON e.id = s.exercise_id
+    WHERE s.id = ${sessionId}
+    LIMIT 1
+  `;
+  const totalQuestions = (exerciseRows[0]?.question_count as number) ?? 0;
+
+  const finalCountRows = await sql`
+    SELECT COUNT(*)::int AS count
+    FROM submissions
+    WHERE session_id = ${sessionId} AND is_final = true
+  `;
+  const finalCount = (finalCountRows[0]?.count as number) ?? 0;
+
+  if (totalQuestions > 0 && finalCount >= totalQuestions) {
+    await sql`
+      UPDATE sessions SET closed_at = now()
+      WHERE id = ${sessionId} AND closed_at IS NULL
+    `;
+    await recalculateSessionScore(sessionId).catch(() => {});
+  }
 
   return NextResponse.json({ submission_id: submission.id }, { status: 200 });
 }

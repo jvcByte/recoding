@@ -5,6 +5,7 @@ import { sql } from '@/lib/db';
 import LiveMonitor from './LiveMonitor';
 import CreateExercise from './CreateExercise';
 import ExercisesTable from './ExercisesTable';
+import AnalyticsPanel from './AnalyticsPanel';
 import Navbar from '@/app/components/Navbar';
 import { Radio, Users } from 'lucide-react';
 
@@ -15,6 +16,18 @@ interface Exercise {
   enabled: boolean;
   question_count: number;
   assigned_user_ids: string[];
+}
+
+interface ExerciseAnalytics {
+  exercise_id: string;
+  title: string;
+  total_sessions: number;
+  completed_sessions: number;
+  passed_sessions: number;
+  failed_sessions: number;
+  flagged_sessions: number;
+  avg_score: number | null;
+  avg_questions_answered: number | null;
 }
 
 async function getExercises(): Promise<Exercise[]> {
@@ -33,9 +46,37 @@ async function getExercises(): Promise<Exercise[]> {
   }
 }
 
+async function getAnalytics(): Promise<ExerciseAnalytics[]> {
+  try {
+    const rows = await sql`
+      SELECT
+        e.id AS exercise_id,
+        e.title,
+        COUNT(s.id)::int AS total_sessions,
+        SUM(CASE WHEN s.closed_at IS NOT NULL THEN 1 ELSE 0 END)::int AS completed_sessions,
+        SUM(CASE WHEN s.passed = true THEN 1 ELSE 0 END)::int AS passed_sessions,
+        SUM(CASE WHEN s.passed = false THEN 1 ELSE 0 END)::int AS failed_sessions,
+        SUM(CASE WHEN EXISTS (
+          SELECT 1 FROM submissions sub WHERE sub.session_id = s.id AND sub.is_flagged = true
+        ) THEN 1 ELSE 0 END)::int AS flagged_sessions,
+        ROUND(AVG(s.score)::numeric, 1) AS avg_score,
+        ROUND(AVG(
+          (SELECT SUM(CASE WHEN sub.is_final THEN 1 ELSE 0 END) FROM submissions sub WHERE sub.session_id = s.id)
+        )::numeric, 1) AS avg_questions_answered
+      FROM exercises e
+      LEFT JOIN sessions s ON s.exercise_id = e.id
+      GROUP BY e.id, e.title
+      ORDER BY e.title
+    `;
+    return rows as unknown as ExerciseAnalytics[];
+  } catch {
+    return [];
+  }
+}
+
 export default async function InstructorDashboard() {
   const session = await getServerSession(authOptions);
-  const exercises = await getExercises();
+  const [exercises, analytics] = await Promise.all([getExercises(), getAnalytics()]);
 
   const enabled = exercises.filter((e) => e.enabled).length;
   const totalAssigned = exercises.reduce((s, e) => s + e.assigned_user_ids.length, 0);
@@ -45,6 +86,13 @@ export default async function InstructorDashboard() {
     const r = await sql`SELECT COUNT(*)::int AS count FROM users WHERE role = 'participant'`;
     participantCount = (r[0]?.count as number) ?? 0;
   } catch { /* ignore */ }
+
+  // Cohort-level totals
+  const totalSessions = analytics.reduce((s, a) => s + a.total_sessions, 0);
+  const totalCompleted = analytics.reduce((s, a) => s + a.completed_sessions, 0);
+  const totalPassed = analytics.reduce((s, a) => s + a.passed_sessions, 0);
+  const totalFailed = analytics.reduce((s, a) => s + a.failed_sessions, 0);
+  const totalFlagged = analytics.reduce((s, a) => s + a.flagged_sessions, 0);
 
   return (
     <div className="page">
@@ -88,6 +136,18 @@ export default async function InstructorDashboard() {
               <span className="sub">Manage →</span>
             </Link>
           </div>
+
+          {/* Cohort Analytics */}
+          {totalSessions > 0 && (
+            <AnalyticsPanel
+              analytics={analytics}
+              totalSessions={totalSessions}
+              totalCompleted={totalCompleted}
+              totalPassed={totalPassed}
+              totalFailed={totalFailed}
+              totalFlagged={totalFlagged}
+            />
+          )}
 
           <ExercisesTable exercises={exercises} />
 

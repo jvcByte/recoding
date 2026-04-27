@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 import { Plus, X, KeyRound, Trash2, AlertTriangle } from 'lucide-react';
 import SearchInput from '@/app/components/SearchInput';
 
+import { formatDateWAT } from '@/lib/format';
+
 interface User { id: string; username: string; role: string; created_at: string; }
 interface Props { initialUsers: User[]; currentUserId: string; }
 
@@ -140,7 +142,7 @@ export default function UserManager({ initialUsers, currentUserId }: Props) {
                   <tr key={user.id}>
                     <td style={{ fontWeight: 600, color: 'var(--text)' }}>{user.username}</td>
                     <td><span className={`badge ${user.role === 'instructor' ? 'badge-purple' : 'badge-gray'}`}>{user.role}</span></td>
-                    <td style={{ color: 'var(--text3)' }}>{new Date(user.created_at).toLocaleDateString()}</td>
+                    <td style={{ color: 'var(--text3)' }}>{formatDateWAT(user.created_at)}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.4rem' }}>
                         <button className="btn btn-ghost btn-sm" onClick={() => { setResetUserId(resetUserId === user.id ? null : user.id); setResetPassword(''); }}>

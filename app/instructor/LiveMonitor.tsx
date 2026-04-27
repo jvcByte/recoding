@@ -46,8 +46,10 @@ type LiveEvent = PasteEvent | FocusEvent | KeystrokeBatchEvent | ErrorEvent;
 
 const MAX_EVENTS = 100;
 
+import { formatWAT } from '@/lib/format';
+
 function formatTime(iso: string): string {
-  try { return new Date(iso).toLocaleTimeString(); } catch { return iso; }
+  try { return formatWAT(iso, { year: undefined, month: undefined, day: undefined, second: '2-digit' }); } catch { return iso; }
 }
 
 function getUsername(event: LiveEvent): string {
@@ -94,7 +96,7 @@ export default function LiveMonitor() {
       let parsed: LiveEvent | HeartbeatEvent;
       try { parsed = JSON.parse(e.data); } catch { return; }
       if (parsed.type === 'heartbeat') {
-        setLastHeartbeat(new Date().toLocaleTimeString());
+        setLastHeartbeat(formatWAT(new Date(), { year: undefined, month: undefined, day: undefined, second: '2-digit' }));
         return;
       }
       setEvents((prev) => {

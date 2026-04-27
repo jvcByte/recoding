@@ -199,9 +199,10 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
 
     // Paste detection via Monaco's onDidPaste
     editor.onDidPaste((e) => {
-      const charCount = e.range
-        ? editor.getModel()?.getValueInRange(e.range)?.length ?? 0
-        : 0;
+      const pastedText = e.range
+        ? editor.getModel()?.getValueInRange(e.range) ?? ''
+        : '';
+      const charCount = pastedText.length;
       const occurredAt = new Date().toISOString();
 
       // Show toast instead of banner
@@ -212,7 +213,7 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
         fetch('/api/events/paste', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ submission_id: submissionId, char_count: charCount, occurred_at: occurredAt }),
+          body: JSON.stringify({ submission_id: submissionId, char_count: charCount, pasted_text: pastedText, occurred_at: occurredAt }),
         }).catch(() => {});
       };
 
