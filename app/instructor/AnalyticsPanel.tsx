@@ -208,7 +208,7 @@ export default function AnalyticsPanel({
                 <Tooltip
                   contentStyle={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12 }}
                   labelFormatter={(_, payload) => payload?.[0]?.payload?.fullTitle ?? ''}
-                  formatter={(v: number) => [`${v.toFixed(1)}%`, 'Avg Score']}
+                  formatter={(v) => v != null ? [`${Number(v).toFixed(1)}%`, 'Avg Score'] : ['—', 'Avg Score']}
                 />
                 <Bar dataKey="Avg Score" fill={COLORS.score} radius={[3, 3, 0, 0]} />
               </BarChart>
