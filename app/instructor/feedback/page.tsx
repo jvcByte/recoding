@@ -5,6 +5,8 @@ import { sql } from '@/lib/db';
 import Navbar from '@/app/components/Navbar';
 import Link from 'next/link';
 
+import { formatWAT } from '@/lib/format';
+
 export default async function FeedbackPage() {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'instructor') redirect('/login');
@@ -85,7 +87,7 @@ export default async function FeedbackPage() {
                       )}
                     </div>
                     <span style={{ fontSize: 12, color: 'var(--text3)' }}>
-                      {new Date(f.submitted_at as string).toLocaleString()}
+                      {formatWAT(f.submitted_at as string)}
                     </span>
                   </div>
 

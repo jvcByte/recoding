@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { audit } from '@/lib/audit';
+import { recalculateSessionScore } from '@/lib/scoring';
 
 export async function PUT(
   req: NextRequest,
@@ -21,6 +22,13 @@ export async function PUT(
     start_time?: string | null;
     end_time?: string | null;
     duration_limit?: string | null;
+    pass_mark?: number | null;
+    min_questions_required?: number | null;
+    flag_fails?: boolean;
+    max_paste_chars?: number | null;
+    max_focus_loss?: number | null;
+    min_edit_events?: number | null;
+    min_response_length?: number | null;
   };
 
   try {
@@ -90,9 +98,51 @@ export async function PUT(
     }
   }
 
+  // Update pass mark and scoring constraints if provided
+  if ('pass_mark' in body || 'min_questions_required' in body || 'flag_fails' in body || 'max_paste_chars' in body) {
+    if (body.pass_mark !== null && body.pass_mark !== undefined) {
+      if (typeof body.pass_mark !== 'number' || isNaN(body.pass_mark)) {
+        return NextResponse.json({ error: 'pass_mark must be a number' }, { status: 400 });
+      }
+      if (body.pass_mark < 0) {
+        return NextResponse.json({ error: 'pass_mark must be >= 0' }, { status: 400 });
+      }
+    }
+    if ('pass_mark' in body) {
+      await sql`UPDATE exercises SET pass_mark = ${body.pass_mark ?? null} WHERE id = ${exerciseId}`;
+    }
+    if ('min_questions_required' in body) {
+      await sql`UPDATE exercises SET min_questions_required = ${body.min_questions_required ?? null} WHERE id = ${exerciseId}`;
+    }
+    if ('flag_fails' in body) {
+      await sql`UPDATE exercises SET flag_fails = ${body.flag_fails ?? false} WHERE id = ${exerciseId}`;
+    }
+    if ('max_paste_chars' in body) {
+      await sql`UPDATE exercises SET max_paste_chars = ${body.max_paste_chars ?? null} WHERE id = ${exerciseId}`;
+    }
+    if ('max_focus_loss' in body) {
+      await sql`UPDATE exercises SET max_focus_loss = ${body.max_focus_loss ?? null} WHERE id = ${exerciseId}`;
+    }
+    if ('min_edit_events' in body) {
+      await sql`UPDATE exercises SET min_edit_events = ${body.min_edit_events ?? null} WHERE id = ${exerciseId}`;
+    }
+    if ('min_response_length' in body) {
+      await sql`UPDATE exercises SET min_response_length = ${body.min_response_length ?? null} WHERE id = ${exerciseId}`;
+    }
+    await audit(session.user.id, 'exercise.scoring_updated', 'exercise', exerciseId, {
+      pass_mark: body.pass_mark, min_questions_required: body.min_questions_required,
+      flag_fails: body.flag_fails, max_paste_chars: body.max_paste_chars,
+    });
+    // Recalculate scores for all sessions of this exercise
+    const sessionRows = await sql`SELECT id FROM sessions WHERE exercise_id = ${exerciseId}`;
+    await Promise.all(sessionRows.map((s) => recalculateSessionScore(s.id as string).catch(() => {})));
+  }
+
   // Return updated exercise with assignments
   const rows = await sql`
-    SELECT e.id, e.slug, e.title, e.enabled, e.question_count,
+    SELECT e.id, e.slug, e.title, e.enabled, e.question_count, e.pass_mark,
+           e.min_questions_required, e.flag_fails, e.max_paste_chars, e.max_focus_loss,
+           e.min_edit_events, e.min_response_length,
            COALESCE(
              json_agg(ea.user_id) FILTER (WHERE ea.user_id IS NOT NULL),
              '[]'
@@ -100,7 +150,9 @@ export async function PUT(
     FROM exercises e
     LEFT JOIN exercise_assignments ea ON ea.exercise_id = e.id
     WHERE e.id = ${exerciseId}
-    GROUP BY e.id, e.slug, e.title, e.enabled, e.question_count
+    GROUP BY e.id, e.slug, e.title, e.enabled, e.question_count, e.pass_mark,
+             e.min_questions_required, e.flag_fails, e.max_paste_chars, e.max_focus_loss,
+             e.min_edit_events, e.min_response_length
   `;
 
   if (rows.length === 0) {

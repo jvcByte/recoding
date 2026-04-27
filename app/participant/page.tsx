@@ -13,6 +13,11 @@ interface Exercise {
   slug: string;
   title: string;
   question_count: number;
+  pass_mark: number | null;
+  min_questions_required: number | null;
+  flag_fails: boolean;
+  max_paste_chars: number | null;
+  max_focus_loss: number | null;
 }
 
 export default async function ExerciseCataloguePage() {
@@ -23,10 +28,14 @@ export default async function ExerciseCataloguePage() {
   let exercises: Exercise[] = [];
   let fetchError = false;
   let sessionStatusMap = new Map<string, 'active' | 'completed'>();
+  let sessionScoreMap = new Map<string, number>();
+  let sessionPassedMap = new Map<string, boolean | null>();
+  let sessionFailReasonsMap = new Map<string, string[]>();
 
   try {
     const rows = await sql`
-      SELECT e.id, e.slug, e.title, e.question_count
+      SELECT e.id, e.slug, e.title, e.question_count, e.pass_mark,
+             e.min_questions_required, e.flag_fails, e.max_paste_chars, e.max_focus_loss
       FROM exercises e
       INNER JOIN exercise_assignments ea ON ea.exercise_id = e.id
       WHERE ea.user_id = ${userId} AND e.enabled = true
@@ -37,17 +46,42 @@ export default async function ExerciseCataloguePage() {
     if (exercises.length > 0) {
       const ids = exercises.map((e) => e.id);
       const sessions = await sql`
-        SELECT exercise_id, closed_at FROM sessions
-        WHERE user_id = ${userId}
-          AND exercise_id = ANY(${ids}::uuid[])
+        SELECT exercise_id, closed_at, score, passed,
+          (SELECT SUM(CASE WHEN sub.is_final THEN 1 ELSE 0 END)::int
+           FROM submissions sub WHERE sub.session_id = s.id) AS final_count,
+          (SELECT COALESCE(SUM(pe.char_count), 0)::int
+           FROM paste_events pe
+           JOIN submissions sub ON sub.id = pe.submission_id
+           WHERE sub.session_id = s.id) AS total_paste_chars,
+          (SELECT COUNT(*)::int FROM focus_events fe WHERE fe.session_id = s.id) AS focus_loss_count,
+          (SELECT BOOL_OR(sub.is_flagged AND jsonb_array_length(sub.dismissed_flags) < COALESCE(array_length(sub.flag_reasons,1),0))
+           FROM submissions sub WHERE sub.session_id = s.id) AS has_active_flag
+        FROM sessions s
+        WHERE s.user_id = ${userId}
+          AND s.exercise_id = ANY(${ids}::uuid[])
       `;
-      // Map: exerciseId → 'active' | 'completed'
       for (const s of sessions) {
         const eid = s.exercise_id as string;
-        if (s.closed_at) {
-          sessionStatusMap.set(eid, 'completed');
-        } else {
-          sessionStatusMap.set(eid, 'active');
+        const ex = exercises.find((e) => e.id === eid);
+        if (s.closed_at) sessionStatusMap.set(eid, 'completed');
+        else sessionStatusMap.set(eid, 'active');
+        if (s.score !== null && s.score !== undefined) sessionScoreMap.set(eid, s.score as number);
+        sessionPassedMap.set(eid, s.passed as boolean | null);
+
+        // Compute human-readable fail reasons
+        if (s.passed === false && ex) {
+          const reasons: string[] = [];
+          const score = Number(s.score ?? 0);
+          const finalCount = (s.final_count as number) ?? 0;
+          const totalPasteChars = (s.total_paste_chars as number) ?? 0;
+          const focusLossCount = (s.focus_loss_count as number) ?? 0;
+          const hasActiveFlag = (s.has_active_flag as boolean) ?? false;
+          if (ex.pass_mark !== null && score < ex.pass_mark) reasons.push(`Your score of ${score.toFixed(1)}% is below the minimum pass mark of ${ex.pass_mark}%`);
+          if (ex.min_questions_required !== null && finalCount < ex.min_questions_required) reasons.push(`You completed ${finalCount} question${finalCount !== 1 ? 's' : ''} but at least ${ex.min_questions_required} are required to pass`);
+          if (ex.flag_fails && hasActiveFlag) reasons.push(`One or more of your answers were flagged for academic integrity violations`);
+          if (ex.max_paste_chars !== null && totalPasteChars > ex.max_paste_chars) reasons.push(`The total amount of text pasted into your answers exceeded the allowed limit`);
+          if (ex.max_focus_loss !== null && focusLossCount > ex.max_focus_loss) reasons.push(`You left or minimised the exercise window ${focusLossCount} time${focusLossCount !== 1 ? 's' : ''}, which exceeded the allowed number of focus losses`);
+          sessionFailReasonsMap.set(eid, reasons);
         }
       }
     }
@@ -80,23 +114,61 @@ export default async function ExerciseCataloguePage() {
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {exercises.map((exercise) => (
-              <div key={exercise.id} className="exercise-card">
-                <div className="exercise-card-info">
-                  <div className="exercise-card-title">{exercise.title}</div>
-                  <div className="exercise-card-meta">
-                    {exercise.question_count} question{exercise.question_count !== 1 ? 's' : ''}
+            {exercises.map((exercise) => {
+              const status = sessionStatusMap.get(exercise.id);
+              const score = sessionScoreMap.get(exercise.id);
+              const passed = sessionPassedMap.get(exercise.id);
+              const failReasons = sessionFailReasonsMap.get(exercise.id) ?? [];
+              const numScore = score !== undefined ? Number(score) : null;
+              const hasPassed = passed === true;
+              const hasFailed = passed === false;
+
+              return (
+                <div key={exercise.id}>
+                  <div className="exercise-card">
+                    <div className="exercise-card-info">
+                      <div className="exercise-card-title">{exercise.title}</div>
+                      <div className="exercise-card-meta">
+                        {exercise.question_count} question{exercise.question_count !== 1 ? 's' : ''}
+                      </div>
+                    </div>
+                    {status === 'completed' ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                        {numScore !== null && (
+                          <span className={`badge ${hasFailed ? 'badge-red' : hasPassed ? 'badge-green' : 'badge-gray'}`} style={{ fontSize: 11 }}>
+                            {numScore.toFixed(1)}%{hasPassed ? ' ✓ Pass' : hasFailed ? ' ✗ Fail' : ''}
+                          </span>
+                        )}
+                        <span className="badge badge-green" style={{ fontSize: 11 }}>Completed</span>
+                      </div>
+                    ) : (
+                      <Link href={`/participant/session/${exercise.id}`} className="btn btn-primary">
+                        {status === 'active' ? 'Continue →' : 'Start →'}
+                      </Link>
+                    )}
                   </div>
+                  {hasFailed && failReasons.length > 0 && (
+                    <div style={{
+                      marginTop: '-0.25rem',
+                      padding: '0.65rem 1rem',
+                      background: 'rgba(239,68,68,0.06)',
+                      border: '1px solid rgba(239,68,68,0.2)',
+                      borderTop: 'none',
+                      borderRadius: '0 0 var(--radius-sm) var(--radius-sm)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.2rem',
+                    }}>
+                      {failReasons.map((r, i) => (
+                        <span key={i} style={{ fontSize: 12, color: 'var(--red)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <span style={{ fontSize: 10 }}>✕</span> {r}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                {sessionStatusMap.get(exercise.id) === 'completed' ? (
-                  <span className="badge badge-green" style={{ fontSize: 11 }}>Completed</span>
-                ) : (
-                  <Link href={`/participant/session/${exercise.id}`} className="btn btn-primary">
-                    {sessionStatusMap.get(exercise.id) === 'active' ? 'Continue →' : 'Start →'}
-                  </Link>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </main>
