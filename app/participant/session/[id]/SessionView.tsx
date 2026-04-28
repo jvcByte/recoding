@@ -109,6 +109,49 @@ export default function SessionView({ exerciseId }: { exerciseId: string }) {
   // Local countdown — ticks every second, synced from server every 10s
   const [localRemaining, setLocalRemaining] = useState<number | null>(null);
 
+  // Centralized focus tracking to prevent duplicates
+  useEffect(() => {
+    if (!sessionState || sessionClosed) return;
+
+    let focusLostAt: number | null = null;
+
+    const recordFocusLoss = () => {
+      if (focusLostAt !== null) return; // Already lost
+      focusLostAt = Date.now();
+    };
+
+    const recordFocusRegain = async () => {
+      if (focusLostAt === null) return; // Wasn't lost
+      const duration = Date.now() - focusLostAt;
+      focusLostAt = null;
+
+      try {
+        await fetch('/api/events/focus', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionState.session_id, duration_ms: duration }),
+        });
+      } catch (err) {
+        console.error('Failed to record focus event:', err);
+      }
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') recordFocusLoss();
+      else recordFocusRegain();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('blur', recordFocusLoss);
+    window.addEventListener('focus', recordFocusRegain);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('blur', recordFocusLoss);
+      window.removeEventListener('focus', recordFocusRegain);
+    };
+  }, [sessionState, sessionClosed]);
+
   const fetchSession = useCallback(async () => {
     try {
       const res = await fetch(`/api/exercises/${exerciseId}/session`);

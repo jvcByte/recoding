@@ -173,32 +173,6 @@ export default function ResponseEditor({
     prevLengthRef.current = target.value.length;
   }, []);
 
-  // ── Focus monitoring ──────────────────────────────────────────────────────
-  useEffect(() => {
-    if (isClosed || isFinal) return;
-    function recordLoss() { if (!focusLostAtRef.current) focusLostAtRef.current = new Date().toISOString(); }
-    function recordRegain() {
-      const lostAt = focusLostAtRef.current;
-      if (!lostAt) return;
-      const regainedAt = new Date().toISOString();
-      focusLostAtRef.current = null;
-      fetch('/api/events/focus', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: sessionId, lost_at: lostAt, regained_at: regainedAt, duration_ms: new Date(regainedAt).getTime() - new Date(lostAt).getTime() }),
-      }).catch(() => {});
-    }
-    const onVis = () => document.visibilityState === 'hidden' ? recordLoss() : recordRegain();
-    document.addEventListener('visibilitychange', onVis);
-    window.addEventListener('blur', recordLoss);
-    window.addEventListener('focus', recordRegain);
-    return () => {
-      document.removeEventListener('visibilitychange', onVis);
-      window.removeEventListener('blur', recordLoss);
-      window.removeEventListener('focus', recordRegain);
-    };
-  }, [sessionId, isClosed, isFinal]);
-
   // ── Beforeunload ──────────────────────────────────────────────────────────
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {

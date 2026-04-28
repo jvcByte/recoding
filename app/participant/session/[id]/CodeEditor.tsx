@@ -247,41 +247,6 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
   }, [doAutosave]);
 
   // ── Focus / visibility monitoring ─────────────────────────────────────────
-  useEffect(() => {
-    if (isClosed) return;
-
-    function recordFocusLoss() {
-      if (focusLostAtRef.current === null) focusLostAtRef.current = new Date().toISOString();
-    }
-
-    function recordFocusRegain() {
-      const lostAt = focusLostAtRef.current;
-      if (!lostAt) return;
-      const regainedAt = new Date().toISOString();
-      const durationMs = new Date(regainedAt).getTime() - new Date(lostAt).getTime();
-      focusLostAtRef.current = null;
-      fetch('/api/events/focus', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: sessionId, lost_at: lostAt, regained_at: regainedAt, duration_ms: durationMs }),
-      }).catch(() => {});
-    }
-
-    function handleVisibility() {
-      if (document.visibilityState === 'hidden') recordFocusLoss();
-      else recordFocusRegain();
-    }
-
-    document.addEventListener('visibilitychange', handleVisibility);
-    window.addEventListener('blur', recordFocusLoss);
-    window.addEventListener('focus', recordFocusRegain);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibility);
-      window.removeEventListener('blur', recordFocusLoss);
-      window.removeEventListener('focus', recordFocusRegain);
-    };
-  }, [sessionId, isClosed]);
-
   // ── Run code ──────────────────────────────────────────────────────────────
   async function runCode() {
     setRunning(true);

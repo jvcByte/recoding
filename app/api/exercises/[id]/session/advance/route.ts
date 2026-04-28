@@ -47,13 +47,17 @@ export async function POST(
     );
   }
 
-  // Lock the current question's submission by marking it final
+  // Lock the current question's submission by marking it final (only if actually attempted)
   await sql`
     UPDATE submissions
     SET is_final = true
     WHERE session_id = ${row.id}
       AND question_index = ${currentIndex}
       AND is_final = false
+      AND (
+        LENGTH(TRIM(COALESCE(response_text, ''))) > 0
+        OR EXISTS (SELECT 1 FROM edit_events ee WHERE ee.submission_id = submissions.id)
+      )
   `;
 
   // Advance to the next question

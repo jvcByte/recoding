@@ -46,9 +46,14 @@ export async function recalculateSessionScore(sessionId: string): Promise<ScoreR
     return { score: 0, passed: null };
   }
 
-  // 2. Count final submissions
+  // 2. Count attempted final submissions:
+  // - written: non-empty response_text
+  // - code: has at least one edit event (participant actually typed something)
   const finalRows = await sql`
-    SELECT SUM(CASE WHEN is_final THEN 1 ELSE 0 END)::int AS count
+    SELECT SUM(CASE WHEN is_final AND (
+      LENGTH(TRIM(COALESCE(response_text, ''))) > 0
+      OR EXISTS (SELECT 1 FROM edit_events ee WHERE ee.submission_id = submissions.id)
+    ) THEN 1 ELSE 0 END)::int AS count
     FROM submissions
     WHERE session_id = ${sessionId}
   `;

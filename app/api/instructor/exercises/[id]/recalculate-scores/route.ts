@@ -42,11 +42,16 @@ export async function POST(
   const minResponseLength = ex.min_response_length ?? DEFAULT_MIN_LENGTH;
   const hasConstraints = ex.pass_mark !== null || ex.min_questions_required !== null || ex.flag_fails || ex.max_paste_chars !== null || ex.max_focus_loss !== null;
 
-  // 1. Mark all submissions final
+  // 1. Mark submissions as final only if actually attempted
+  // (non-empty response OR has edit events — handles both written and code questions)
   await sql`
     UPDATE submissions SET is_final = true
     WHERE session_id IN (SELECT id FROM sessions WHERE exercise_id = ${exerciseId})
       AND is_final = false
+      AND (
+        LENGTH(TRIM(COALESCE(response_text, ''))) > 0
+        OR EXISTS (SELECT 1 FROM edit_events ee WHERE ee.submission_id = submissions.id)
+      )
   `;
 
   // 2. Close open sessions
@@ -116,7 +121,7 @@ export async function POST(
     WHERE sub.session_id IN (SELECT id FROM sessions WHERE exercise_id = ${exerciseId})
   `;
 
-  // 5. Re-evaluate low_edit_count flags with per-exercise thresholds
+  // 5. Re-evaluate low_edit_count flags with per-exercise thresholds (excluding starter code)
   await sql`
     UPDATE submissions sub
     SET
@@ -129,10 +134,22 @@ export async function POST(
           WHEN (
             SELECT COUNT(*)::int FROM edit_events ee WHERE ee.submission_id = sub.id
           ) < ${minEditEvents}
-          AND LENGTH(COALESCE(sub.response_text, '')) >= ${minResponseLength}
+          AND GREATEST(0, LENGTH(COALESCE(sub.response_text, '')) - LENGTH(COALESCE((
+            SELECT q.starter FROM questions q
+            JOIN sessions s ON s.exercise_id = q.exercise_id
+            WHERE s.id = sub.session_id AND q.question_index = sub.question_index
+          ), ''))) >= ${minResponseLength}
           THEN ARRAY['low_edit_count: ' || (
             SELECT COUNT(*)::text FROM edit_events ee WHERE ee.submission_id = sub.id
-          ) || ' edit event(s) for a ' || LENGTH(COALESCE(sub.response_text, ''))::text || '-character response']
+          ) || ' edit event(s) for a ' || GREATEST(0, LENGTH(COALESCE(sub.response_text, '')) - LENGTH(COALESCE((
+            SELECT q.starter FROM questions q
+            JOIN sessions s ON s.exercise_id = q.exercise_id
+            WHERE s.id = sub.session_id AND q.question_index = sub.question_index
+          ), '')))::text || '-character response (excluding ' || LENGTH(COALESCE((
+            SELECT q.starter FROM questions q
+            JOIN sessions s ON s.exercise_id = q.exercise_id
+            WHERE s.id = sub.session_id AND q.question_index = sub.question_index
+          ), ''))::text || '-character starter code)']
           ELSE ARRAY[]::text[]
         END
       ),
@@ -143,7 +160,11 @@ export async function POST(
         )
         OR (
           (SELECT COUNT(*)::int FROM edit_events ee WHERE ee.submission_id = sub.id) < ${minEditEvents}
-          AND LENGTH(COALESCE(sub.response_text, '')) >= ${minResponseLength}
+          AND GREATEST(0, LENGTH(COALESCE(sub.response_text, '')) - LENGTH(COALESCE((
+            SELECT q.starter FROM questions q
+            JOIN sessions s ON s.exercise_id = q.exercise_id
+            WHERE s.id = sub.session_id AND q.question_index = sub.question_index
+          ), ''))) >= ${minResponseLength}
         )
       )
     WHERE sub.session_id IN (SELECT id FROM sessions WHERE exercise_id = ${exerciseId})

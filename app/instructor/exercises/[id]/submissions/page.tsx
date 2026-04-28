@@ -14,6 +14,7 @@ export interface ParticipantRow {
   username: string;
   score: number | null;
   passed: boolean | null;
+  passed_override: boolean | null;
   total_questions: number;
   answered: number;
   final_count: number;
@@ -45,6 +46,7 @@ export default async function SubmissionListPage({ params }: Props) {
       u.username,
       s.score,
       s.passed,
+      s.passed_override,
       e.question_count                                            AS total_questions,
       COUNT(sub.id)::int                                          AS answered,
       COUNT(sub.id) FILTER (WHERE sub.is_final = true)::int       AS final_count,
@@ -65,7 +67,7 @@ export default async function SubmissionListPage({ params }: Props) {
     JOIN exercises e ON e.id = s.exercise_id
     LEFT JOIN submissions sub ON sub.session_id = s.id
     WHERE s.exercise_id = ${exerciseId}
-    GROUP BY s.id, u.username, s.score, s.passed, e.question_count
+    GROUP BY s.id, u.username, s.score, s.passed, s.passed_override, e.question_count
     ORDER BY u.username
   `;
 
@@ -74,12 +76,13 @@ export default async function SubmissionListPage({ params }: Props) {
     username: r.username as string,
     score: r.score != null ? Number(r.score) : null,
     passed: r.passed != null ? (r.passed as boolean) : null,
+    passed_override: r.passed_override != null ? (r.passed_override as boolean) : null,
     total_questions: r.total_questions as number,
     answered: r.answered as number,
     final_count: r.final_count as number,
     is_flagged: r.is_flagged as boolean,
     flag_count: r.flag_count as number,
-    last_submitted_at: formatWAT(r.last_submitted_at as string),
+    last_submitted_at: r.last_submitted_at ? formatWAT(r.last_submitted_at as string) : '—',
     submissions: (r.submissions as { id: string; question_index: number; is_final: boolean; is_flagged: boolean; submitted_at: string }[] | null) ?? [],
   }));
 
