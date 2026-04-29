@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { sql } from '@/lib/db';
 import { readFileSync } from 'fs';
 import path from 'path';
 
@@ -34,14 +35,22 @@ export async function POST(req: NextRequest) {
     }, { status: 503 });
   }
 
-  let body: { code: string; language: string; stdin?: string; exercise?: string };
+  let body: {
+    code: string;
+    language: string;
+    stdin?: string;
+    exercise?: string;
+    session_id?: string;
+    question_index?: number;
+    test_cases?: Array<{ input: string; expected_output: string }>;
+  };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { code, language, stdin = '', exercise = '' } = body;
+  const { code, language, stdin = '', exercise = '', session_id, question_index, test_cases } = body;
 
   if (!code || typeof code !== 'string') {
     return NextResponse.json({ error: 'code is required' }, { status: 400 });
@@ -86,6 +95,22 @@ export async function POST(req: NextRequest) {
 
     // Categorize errors for better user feedback
     const categorized = categorizeRunResult(result);
+
+    // If test cases provided, run each one and evaluate correctness
+    if (test_cases && test_cases.length > 0) {
+      const testResults = await runTestCases(code, language, exercise, test_cases, RUNNER_URL);
+      const allPassed = testResults.every((r) => r.passed);
+
+      // Persist tests_passed on the submission if session context provided
+      if (session_id != null && question_index != null) {
+        await persistTestResult(session_id, question_index, allPassed, session.user.id).catch((err) => {
+          console.error('[run-code] Failed to persist test result:', err);
+        });
+      }
+
+      return NextResponse.json({ ...categorized, test_results: testResults, tests_passed: allPassed });
+    }
+
     return NextResponse.json(categorized);
   } catch (err) {
     console.error('[run-code] fetch error:', (err as Error).message);
@@ -148,4 +173,70 @@ function categorizeRunResult(result: RunResult): RunResult {
   }
 
   return result;
+}
+
+interface TestCaseResult {
+  input: string;
+  expected: string;
+  actual: string;
+  passed: boolean;
+  error?: string;
+}
+
+async function runTestCases(
+  code: string,
+  language: string,
+  exercise: string,
+  testCases: Array<{ input: string; expected_output: string }>,
+  runnerUrl: string
+): Promise<TestCaseResult[]> {
+  const results: TestCaseResult[] = [];
+
+  for (const tc of testCases) {
+    try {
+      const res = await fetchWithRetry(`${runnerUrl}/run`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(process.env.RUNNER_API_KEY ? { 'Authorization': `Bearer ${process.env.RUNNER_API_KEY}` } : {}),
+        },
+        body: JSON.stringify({ code, language, stdin: tc.input }),
+      });
+
+      if (!res.ok) {
+        results.push({ input: tc.input, expected: tc.expected_output, actual: '', passed: false, error: 'Runner error' });
+        continue;
+      }
+
+      const data = await res.json() as { stdout: string; stderr: string; exit_code: number; compile_output: string };
+      const actual = (data.stdout ?? '').trim();
+      const expected = tc.expected_output.trim();
+      results.push({ input: tc.input, expected, actual, passed: actual === expected });
+    } catch (err) {
+      results.push({ input: tc.input, expected: tc.expected_output, actual: '', passed: false, error: (err as Error).message });
+    }
+  }
+
+  return results;
+}
+
+async function persistTestResult(
+  sessionId: string,
+  questionIndex: number,
+  testsPassed: boolean,
+  userId: string
+): Promise<void> {
+  // Verify session belongs to user
+  const sessionRows = await sql`
+    SELECT id FROM sessions WHERE id = ${sessionId} AND user_id = ${userId} LIMIT 1
+  `;
+  if (sessionRows.length === 0) return;
+
+  // Upsert submission with tests_passed result
+  await sql`
+    INSERT INTO submissions (session_id, question_index, response_text, submitted_at, tests_passed)
+    VALUES (${sessionId}, ${questionIndex}, '', now(), ${testsPassed})
+    ON CONFLICT (session_id, question_index)
+    DO UPDATE SET tests_passed = ${testsPassed}
+  `;
 }

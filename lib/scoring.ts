@@ -46,16 +46,25 @@ export async function recalculateSessionScore(sessionId: string): Promise<ScoreR
     return { score: 0, passed: null };
   }
 
-  // 2. Count attempted final submissions:
-  // - written: non-empty response_text
-  // - code: has at least one edit event (participant actually typed something)
+  // 2. Count passed submissions per question type:
+  // - written: is_final AND non-empty response
+  // - code with test cases: is_final AND tests_passed = true
+  // - code without test cases: is_final AND has edit events (unchanged behavior)
   const finalRows = await sql`
-    SELECT SUM(CASE WHEN is_final AND (
-      LENGTH(TRIM(COALESCE(response_text, ''))) > 0
-      OR EXISTS (SELECT 1 FROM edit_events ee WHERE ee.submission_id = submissions.id)
+    SELECT SUM(CASE WHEN sub.is_final AND (
+      -- Written question or code with no test cases: presence check
+      (q.test_cases IS NULL AND (
+        LENGTH(TRIM(COALESCE(sub.response_text, ''))) > 0
+        OR EXISTS (SELECT 1 FROM edit_events ee WHERE ee.submission_id = sub.id)
+      ))
+      OR
+      -- Code question with test cases: must have passed all tests
+      (q.test_cases IS NOT NULL AND sub.tests_passed = true)
     ) THEN 1 ELSE 0 END)::int AS count
-    FROM submissions
-    WHERE session_id = ${sessionId}
+    FROM submissions sub
+    LEFT JOIN sessions sess ON sess.id = sub.session_id
+    LEFT JOIN questions q ON q.exercise_id = sess.exercise_id AND q.question_index = sub.question_index
+    WHERE sub.session_id = ${sessionId}
   `;
   const finalCount = (finalRows[0]?.count as number) ?? 0;
 
