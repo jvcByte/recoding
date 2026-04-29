@@ -39,17 +39,20 @@ export async function evaluateFlags(submissionId: string): Promise<FlagResult> {
   const starterCode: string = (thresholdResult[0]?.starter as string) ?? '';
 
   // Count paste events that exceed the threshold (or all paste events if no threshold set)
+  // Only flag if: char_count > threshold AND (tab_was_blurred OR source_type = 'external')
   const pasteResult = maxPasteChars !== null
     ? await sql`
         SELECT COUNT(*)::int AS count
         FROM paste_events
         WHERE submission_id = ${submissionId}
           AND char_count > ${maxPasteChars}
+          AND (tab_was_blurred = true OR source_type = 'external')
       `
     : await sql`
         SELECT COUNT(*)::int AS count
         FROM paste_events
         WHERE submission_id = ${submissionId}
+          AND (tab_was_blurred = true OR source_type = 'external' OR source_type = 'unknown')
       `;
   const pasteCount: number = (pasteResult[0]?.count as number) ?? 0;
 

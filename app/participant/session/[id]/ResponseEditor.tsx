@@ -2,14 +2,14 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { toast } from 'sonner';
+import SaveStatusIndicator, { SaveStatus } from './SaveStatusIndicator';
+import { enqueueFailedAutosave } from '@/lib/offline-queue';
 
 interface RestoreResponse {
   response_text: string;
   question_index: number;
   is_final?: boolean;
 }
-
-type SaveStatus = 'idle' | 'saving' | 'saved' | 'failed';
 
 interface EditEvent {
   event_type: 'insert' | 'delete';
@@ -22,16 +22,20 @@ interface PasteEventPayload {
   submission_id: string;
   char_count: number;
   occurred_at: string;
+  tab_was_blurred?: boolean;
+  source_type?: string;
 }
 
 export default function ResponseEditor({
   sessionId,
   questionIndex,
   isClosed,
+  onDirtyChange,
 }: {
   sessionId: string;
   questionIndex: number;
   isClosed: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [text, setText] = useState('');
   const [lastSavedText, setLastSavedText] = useState('');
@@ -48,6 +52,25 @@ export default function ResponseEditor({
   const lastSavedRef = useRef(lastSavedText);
   lastSavedRef.current = lastSavedText;
   const focusLostAtRef = useRef<string | null>(null);
+
+  // ── Local storage backup helpers ──────────────────────────────────────────
+  const saveToLocalStorage = useCallback((sessionId: string, questionIndex: number, text: string) => {
+    const key = `autosave:${sessionId}:${questionIndex}`;
+    try {
+      localStorage.setItem(key, text);
+    } catch (err) {
+      console.error('Failed to save to localStorage:', err);
+    }
+  }, []);
+
+  const clearLocalStorage = useCallback((sessionId: string, questionIndex: number) => {
+    const key = `autosave:${sessionId}:${questionIndex}`;
+    try {
+      localStorage.removeItem(key);
+    } catch (err) {
+      console.error('Failed to clear localStorage:', err);
+    }
+  }, []);
 
   // ── Reset on question change ──────────────────────────────────────────────
   useEffect(() => {
@@ -100,6 +123,10 @@ export default function ResponseEditor({
     const current = textRef.current;
     if (current === lastSavedRef.current || isFinal || isClosed) return;
     setSaveStatus('saving');
+    
+    // Save to localStorage before attempting server sync
+    saveToLocalStorage(sessionId, questionIndex, current);
+    
     try {
       const res = await fetch(`/api/submissions/${sessionId}/autosave`, {
         method: 'POST',
@@ -124,37 +151,59 @@ export default function ResponseEditor({
 
         setLastSavedText(current);
         setSaveStatus('saved');
+        onDirtyChange?.(false);
         if (!silent) toast.success('Draft saved');
+        
+        // Clear localStorage on successful server save
+        clearLocalStorage(sessionId, questionIndex);
       } else {
-        setSaveStatus('failed');
-        if (!silent) toast.error('Save failed');
+        // Server error - add to offline queue
+        setSaveStatus('error');
+        enqueueFailedAutosave(sessionId, questionIndex, current);
+        if (!silent) toast.error('Save failed - will retry when online');
       }
     } catch {
-      setSaveStatus('failed');
-      if (!silent) toast.error('Save failed');
+      // Network error - likely offline
+      setSaveStatus('offline');
+      enqueueFailedAutosave(sessionId, questionIndex, current);
+      if (!silent) toast.error('Offline - changes saved locally');
     }
-  }, [sessionId, questionIndex, isFinal, isClosed, flushPendingPasteEvents]);
+  }, [sessionId, questionIndex, isFinal, isClosed, flushPendingPasteEvents, saveToLocalStorage, clearLocalStorage]);
 
   useEffect(() => {
-    const t = setInterval(() => doAutosave(true), 25_000);
+    const t = setInterval(() => doAutosave(true), 3_000);
     return () => clearInterval(t);
   }, [doAutosave]);
 
   // ── Paste handler ─────────────────────────────────────────────────────────
   const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const charCount = e.clipboardData.getData('text').length;
+    const pastedText = e.clipboardData.getData('text');
     const occurredAt = new Date().toISOString();
+    const tabWasBlurred = focusLostAtRef.current !== null &&
+      (Date.now() - new Date(focusLostAtRef.current).getTime()) < 5000;
+
+    // Detect internal paste: pasted text exists in current response
+    const isInternal = pastedText.length > 0 && textRef.current.includes(pastedText);
+    const sourceType = isInternal ? 'internal' : (tabWasBlurred ? 'external' : 'unknown');
 
     toast.warning('Paste detected — this activity is being recorded', { duration: 4000 });
+
+    const payload = {
+      char_count: charCount,
+      occurred_at: occurredAt,
+      tab_was_blurred: tabWasBlurred,
+      source_type: sourceType,
+    };
 
     if (submissionIdRef.current) {
       fetch('/api/events/paste', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ submission_id: submissionIdRef.current, char_count: charCount, occurred_at: occurredAt }),
+        body: JSON.stringify({ submission_id: submissionIdRef.current, ...payload }),
       }).catch(() => {});
     } else {
-      pendingPasteEventsRef.current.push({ submission_id: '', char_count: charCount, occurred_at: occurredAt });
+      pendingPasteEventsRef.current.push({ submission_id: '', ...payload });
     }
   }, []);
 
@@ -182,6 +231,20 @@ export default function ResponseEditor({
     return () => window.removeEventListener('beforeunload', handler);
   }, [isFinal]);
 
+  // ── Blur tracking for paste context ───────────────────────────────────────
+  useEffect(() => {
+    const handleBlur = () => { focusLostAtRef.current = new Date().toISOString(); };
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') focusLostAtRef.current = new Date().toISOString();
+    };
+    window.addEventListener('blur', handleBlur);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('blur', handleBlur);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, []);
+
   // ── Final submit ──────────────────────────────────────────────────────────
   async function handleFinalSubmit() {
     setSaveStatus('saving');
@@ -191,7 +254,7 @@ export default function ResponseEditor({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question_index: questionIndex, response_text: textRef.current }),
       });
-      if (!saveRes.ok) { setSaveStatus('failed'); toast.error('Failed to save before submitting'); return; }
+      if (!saveRes.ok) { setSaveStatus('error'); toast.error('Failed to save before submitting'); return; }
       const saveData = await saveRes.json();
       const submissionId: string = saveData.submission_id;
       const isFirst = submissionIdRef.current === null;
@@ -206,7 +269,7 @@ export default function ResponseEditor({
         }).catch(() => {});
       }
       setLastSavedText(textRef.current);
-    } catch { setSaveStatus('failed'); toast.error('Network error'); return; }
+    } catch { setSaveStatus('error'); toast.error('Network error'); return; }
 
     try {
       const finalRes = await fetch(`/api/submissions/${sessionId}/final`, {
@@ -219,10 +282,10 @@ export default function ResponseEditor({
         setSaveStatus('saved');
         toast.success('Answer submitted');
       } else {
-        setSaveStatus('failed');
+        setSaveStatus('error');
         toast.error('Failed to submit');
       }
-    } catch { setSaveStatus('failed'); toast.error('Network error'); }
+    } catch { setSaveStatus('error'); toast.error('Network error'); }
   }
 
   const isDisabled = isClosed || isFinal;
@@ -236,7 +299,7 @@ export default function ResponseEditor({
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
         <label htmlFor="response" style={{ fontWeight: 700, fontSize: 14 }}>Your Response</label>
         {hasUnsaved && !isDisabled && <span className="badge badge-orange">Unsaved draft</span>}
-        {saveStatus === 'saving' && <span style={{ fontSize: 12, color: 'var(--text3)' }}>Saving…</span>}
+        <SaveStatusIndicator status={saveStatus} />
       </div>
 
       <textarea
@@ -245,7 +308,7 @@ export default function ResponseEditor({
         rows={14}
         disabled={isDisabled || !restored}
         value={text}
-        onChange={(e) => { setText(e.target.value); setSaveStatus('idle'); }}
+        onChange={(e) => { setText(e.target.value); setSaveStatus('idle'); onDirtyChange?.(true); }}
         onInput={handleInput}
         onPaste={handlePaste}
         placeholder={restored ? 'Write your answer here…' : 'Loading…'}

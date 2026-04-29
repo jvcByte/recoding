@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
-import { Plus, Trash2, Edit3, ChevronDown, ChevronUp, Save, X, Upload, FileText, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, Edit3, ChevronDown, ChevronUp, Save, X, Upload, FileText, RefreshCw, AlertTriangle } from 'lucide-react';
 
 interface Question {
   id: string;
@@ -37,10 +37,14 @@ export default function QuestionManager({ exerciseId, exerciseSlug, initialQuest
   const [newQ, setNewQ] = useState({ text: '', type: defaults.type, language: defaults.language, starter: '' });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmSync, setConfirmSync] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [uploadType, setUploadType] = useState(defaults.type);
   const [uploadLang, setUploadLang] = useState(defaults.language);
+  const [uploadType, setUploadType] = useState(defaults.type);
   const [dragOver, setDragOver] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -71,8 +75,8 @@ export default function QuestionManager({ exerciseId, exerciseSlug, initialQuest
   }
 
   async function syncFromFiles() {
-    if (!confirm('Sync questions from docs files? This will replace all current questions.')) return;
     setSyncing(true);
+    setConfirmSync(false);
     try {
       const res = await fetch(`/api/instructor/exercises/${exerciseId}/questions/sync`, { method: 'POST' });
       const data = await res.json();
@@ -110,15 +114,18 @@ export default function QuestionManager({ exerciseId, exerciseSlug, initialQuest
     } finally { setSaving(false); }
   }
 
-  async function deleteQuestion(id: string, index: number) {
-    if (!confirm(`Delete question ${index + 1}? This cannot be undone.`)) return;
+  async function deleteQuestion(id: string) {
+    setDeleting(true);
     try {
       const res = await fetch(`/api/instructor/exercises/${exerciseId}/questions/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error(await res.text());
       setQuestions((qs) => qs.filter((q) => q.id !== id).map((q, i) => ({ ...q, question_index: i })));
+      setConfirmDeleteId(null);
       toast.success('Question deleted');
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed to delete');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -182,11 +189,32 @@ export default function QuestionManager({ exerciseId, exerciseSlug, initialQuest
                     <button className="btn btn-ghost btn-sm" title="Edit" onClick={() => { setEditing(q.id); setEditDraft({ text: q.text, type: q.type, language: q.language, starter: q.starter }); setExpanded(q.id); }}>
                       <Edit3 size={12} />
                     </button>
-                    <button className="btn btn-danger btn-sm" title="Delete" onClick={() => deleteQuestion(q.id, q.question_index)}>
+                    <button className="btn btn-danger btn-sm" title="Delete" onClick={() => setConfirmDeleteId(confirmDeleteId === q.id ? null : q.id)}>
                       <Trash2 size={12} />
                     </button>
                   </div>
                 </div>
+
+                {confirmDeleteId === q.id && (
+                  <div style={{ background: 'rgba(239,68,68,0.06)', borderLeft: '3px solid var(--red)', padding: '0.75rem 1rem' }}>
+                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <AlertTriangle size={14} style={{ color: 'var(--red)', flexShrink: 0 }} />
+                      <span style={{ fontSize: 13, color: 'var(--text2)' }}>
+                        Delete <strong style={{ color: 'var(--text)' }}>Question {q.question_index + 1}</strong>? This cannot be undone.
+                      </span>
+                      <button
+                        className="btn btn-danger btn-sm"
+                        disabled={deleting}
+                        onClick={() => deleteQuestion(q.id)}
+                      >
+                        {deleting ? 'Deleting…' : 'Yes, delete'}
+                      </button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => setConfirmDeleteId(null)}>
+                        <X size={12} /> Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {expanded === q.id && (
                   <div style={{ borderTop: '1px solid var(--border)', padding: '1rem', background: 'var(--bg3)' }}>
@@ -250,9 +278,22 @@ export default function QuestionManager({ exerciseId, exerciseSlug, initialQuest
         <div className="card-header">
           <span className="card-title">Bulk Import from Markdown</span>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <button className="btn btn-sm btn-secondary" disabled={syncing} onClick={syncFromFiles} title="Re-read questions from docs/ files and update the database">
-              <RefreshCw size={12} /> {syncing ? 'Syncing…' : 'Sync from files'}
-            </button>
+            {confirmSync ? (
+              <>
+                <AlertTriangle size={13} style={{ color: 'var(--orange)', flexShrink: 0 }} />
+                <span style={{ fontSize: 12, color: 'var(--text2)' }}>Replace all questions?</span>
+                <button className="btn btn-sm btn-danger" disabled={syncing} onClick={syncFromFiles}>
+                  {syncing ? 'Syncing…' : 'Yes, sync'}
+                </button>
+                <button className="btn btn-sm btn-ghost" onClick={() => setConfirmSync(false)}>
+                  <X size={11} /> Cancel
+                </button>
+              </>
+            ) : (
+              <button className="btn btn-sm btn-secondary" disabled={syncing} onClick={() => setConfirmSync(true)} title="Re-read questions from docs/ files and update the database">
+                <RefreshCw size={12} /> Sync from files
+              </button>
+            )}
             <span className="badge badge-orange">Replaces all questions</span>
           </div>
         </div>
@@ -336,7 +377,20 @@ export default function QuestionManager({ exerciseId, exerciseSlug, initialQuest
             {newQ.type === 'code' && (
               <div className="form-group">
                 <label className="form-label">Starter Code</label>
-                <textarea className="form-textarea" rows={8} style={{ fontFamily: "'Fira Code', monospace", fontSize: 12 }} placeholder={'package main\n\nfunc main() {\n  // TODO\n}'} value={newQ.starter} onChange={(e) => setNewQ((q) => ({ ...q, starter: e.target.value }))} />
+                <textarea
+                  className="form-textarea"
+                  rows={8}
+                  style={{ fontFamily: "'Fira Code', monospace", fontSize: 12 }}
+                  placeholder={
+                    newQ.language === 'go'
+                      ? '// You may use any standard library packages\n// e.g. fmt, os, bufio, strings\npackage main\n\nimport "fmt"\n\nfunc main() {\n  // Your solution here\n}'
+                      : newQ.language === 'python'
+                        ? '# You may use any standard library modules\n# e.g. sys, os, re, collections\n\ndef main():\n    # Your solution here\n    pass\n\nif __name__ == "__main__":\n    main()'
+                        : '// Your solution here'
+                  }
+                  value={newQ.starter}
+                  onChange={(e) => setNewQ((q) => ({ ...q, starter: e.target.value }))}
+                />
               </div>
             )}
             <div style={{ display: 'flex', gap: '0.5rem' }}>

@@ -77,12 +77,13 @@ export async function POST(
 
   // Upsert the submission
   const upserted = await sql`
-    INSERT INTO submissions (session_id, question_index, response_text, submitted_at)
-    VALUES (${sessionId}, ${question_index}, ${response_text}, now())
+    INSERT INTO submissions (session_id, question_index, response_text, submitted_at, status)
+    VALUES (${sessionId}, ${question_index}, ${response_text}, now(), 'draft')
     ON CONFLICT (session_id, question_index)
     DO UPDATE SET
       response_text = EXCLUDED.response_text,
-      submitted_at  = EXCLUDED.submitted_at
+      submitted_at  = EXCLUDED.submitted_at,
+      status        = 'draft'
     RETURNING id
   `;
 

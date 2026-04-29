@@ -16,14 +16,22 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { session_id, lost_at, regained_at, duration_ms } = body as {
     session_id: string;
-    lost_at: string;
+    lost_at?: string;
     regained_at?: string;
     duration_ms?: number;
   };
 
-  if (!session_id || !lost_at) {
+  if (!session_id) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
+
+  // Derive lost_at from duration_ms if not provided
+  const resolvedLostAt = lost_at ?? (
+    duration_ms != null
+      ? new Date(Date.now() - duration_ms).toISOString()
+      : new Date().toISOString()
+  );
+  const resolvedRegainedAt = regained_at ?? new Date().toISOString();
 
   // Validate session belongs to the current user
   const ownerCheck = await sql`
@@ -43,8 +51,8 @@ export async function POST(req: NextRequest) {
     INSERT INTO focus_events (session_id, lost_at, regained_at, duration_ms)
     VALUES (
       ${session_id},
-      ${lost_at},
-      ${regained_at ?? null},
+      ${resolvedLostAt},
+      ${resolvedRegainedAt},
       ${duration_ms ?? null}
     )
     RETURNING id

@@ -4,9 +4,10 @@ import { useEffect, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import ResponseEditor from './ResponseEditor';
 import CodeEditor from './CodeEditor';
+import QuestionOverview from './QuestionOverview';
 import { AlertTriangle } from 'lucide-react';
 
-interface QuestionStatus { question_index: number; has_draft: boolean; is_final: boolean; }
+interface QuestionStatus { question_index: number; has_draft: boolean; is_final: boolean; status?: string; }
 interface SessionState {
   session_id: string; exercise_slug: string; current_question_index: number; question_count: number;
   remaining_seconds: number | null; warning_low_time: boolean; question_statuses: QuestionStatus[];
@@ -17,6 +18,9 @@ interface Question {
   type: 'written' | 'code';
   language: string;
   starter: string;
+  points?: number | null;
+  test_cases?: Array<{ input: string; expected_output: string }> | null;
+  documentation_links?: Array<{ package?: string; url: string; label?: string }> | null;
 }
 
 function TimerDisplay({ remainingSeconds, warningLowTime }: { remainingSeconds: number | null; warningLowTime: boolean }) {
@@ -52,9 +56,10 @@ function ProgressBar({ currentIndex, viewingIndex, questionCount, questionStatus
           const reachable = i <= currentIndex;
           let bg = 'var(--bg5)';
           let title = `Q${i + 1}: not started`;
-          if (status?.is_final)       { bg = 'var(--green)';  title = `Q${i + 1}: final`; }
-          else if (status?.has_draft) { bg = 'var(--orange)'; title = `Q${i + 1}: draft`; }
-          else if (i === currentIndex){ bg = 'var(--accent)'; title = `Q${i + 1}: current`; }
+          if (status?.is_final || status?.status === 'final')   { bg = 'var(--green)';  title = `Q${i + 1}: final`; }
+          else if (status?.status === 'skipped')                { bg = 'var(--orange)'; title = `Q${i + 1}: skipped`; }
+          else if (status?.has_draft || status?.status === 'draft') { bg = '#f59e0b80'; title = `Q${i + 1}: draft`; }
+          else if (i === currentIndex)                          { bg = 'var(--accent)'; title = `Q${i + 1}: current`; }
           const isViewing = i === viewingIndex;
           return (
             <div
@@ -84,7 +89,8 @@ function ProgressBar({ currentIndex, viewingIndex, questionCount, questionStatus
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
         {[
           { color: 'var(--accent)', label: 'current' },
-          { color: 'var(--orange)', label: 'draft' },
+          { color: '#f59e0b80',     label: 'draft' },
+          { color: 'var(--orange)', label: 'skipped' },
           { color: 'var(--green)',  label: 'final' },
         ].map(({ color, label }) => (
           <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
@@ -106,6 +112,10 @@ export default function SessionView({ exerciseId }: { exerciseId: string }) {
   const [loading, setLoading] = useState(true);
   const [advancing, setAdvancing] = useState(false);
   const [advanceError, setAdvanceError] = useState<string | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+  const [showOverview, setShowOverview] = useState(false);
   // Local countdown — ticks every second, synced from server every 10s
   const [localRemaining, setLocalRemaining] = useState<number | null>(null);
 
@@ -177,11 +187,35 @@ export default function SessionView({ exerciseId }: { exerciseId: string }) {
   const activeIndex = viewingIndex ?? sessionState?.current_question_index ?? 0;
   const isViewingCurrent = viewingIndex === null || viewingIndex === sessionState?.current_question_index;
 
+  const guardNavigation = useCallback((action: () => void) => {
+    if (isDirty) {
+      setPendingAction(() => action);
+      setShowUnsavedWarning(true);
+    } else {
+      action();
+    }
+  }, [isDirty]);
+
   const handleAdvance = useCallback(async () => {
     setAdvancing(true); setAdvanceError(null);
     try {
       const res = await fetch(`/api/exercises/${exerciseId}/session/advance`, { method: 'POST' });
       if (!res.ok) { const d = await res.json().catch(() => ({})); setAdvanceError((d as { error?: string }).error ?? 'Failed to advance.'); return; }
+      setViewingIndex(null);
+      await fetchSession();
+    } catch { setAdvanceError('Network error.'); }
+    finally { setAdvancing(false); }
+  }, [exerciseId, fetchSession]);
+
+  const handleSkip = useCallback(async () => {
+    setAdvancing(true); setAdvanceError(null);
+    try {
+      const res = await fetch(`/api/exercises/${exerciseId}/session/advance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skip: true }),
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); setAdvanceError((d as { error?: string }).error ?? 'Failed to skip.'); return; }
       setViewingIndex(null);
       await fetchSession();
     } catch { setAdvanceError('Network error.'); }
@@ -214,7 +248,7 @@ export default function SessionView({ exerciseId }: { exerciseId: string }) {
   }, [sessionState]);
 
   useEffect(() => { (async () => { setLoading(true); await fetchSession(); setLoading(false); })(); }, [fetchSession]);
-  useEffect(() => { if (sessionState) fetchQuestion(activeIndex); }, [sessionState, activeIndex, fetchQuestion]);
+  useEffect(() => { if (sessionState) fetchQuestion(activeIndex); setIsDirty(false); }, [sessionState, activeIndex, fetchQuestion]);
   // Server sync every 10s
   useEffect(() => { const t = setInterval(fetchSession, 10_000); return () => clearInterval(t); }, [fetchSession]);
   // Local 1-second countdown
@@ -272,10 +306,30 @@ export default function SessionView({ exerciseId }: { exerciseId: string }) {
           questionStatuses={sessionState.question_statuses}
           onNavigate={(i) => setViewingIndex(i === sessionState.current_question_index ? null : i)}
         />
-        <div style={{ flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+          <button onClick={() => setShowOverview((s) => !s)} className="btn btn-ghost btn-sm">
+            {showOverview ? 'Hide Overview' : 'Overview'}
+          </button>
           <TimerDisplay remainingSeconds={displayRemainingSeconds} warningLowTime={displayRemainingSeconds !== null && displayRemainingSeconds < 300} />
         </div>
       </div>
+
+      {/* Question Overview Panel */}
+      {showOverview && (
+        <QuestionOverview
+          questions={Array.from({ length: sessionState.question_count }, (_, i) => {
+            const s = sessionState.question_statuses.find((qs) => qs.question_index === i);
+            return {
+              index: i,
+              status: s?.status ?? (s?.is_final ? 'final' : s?.has_draft ? 'draft' : 'not_started'),
+              reachable: i <= sessionState.current_question_index,
+            };
+          })}
+          currentIndex={activeIndex}
+          onNavigate={(i) => { setViewingIndex(i === sessionState.current_question_index ? null : i); setShowOverview(false); }}
+          onClose={() => setShowOverview(false)}
+        />
+      )}
 
       {/* Question */}
       <div className="question-box">
@@ -295,19 +349,23 @@ export default function SessionView({ exerciseId }: { exerciseId: string }) {
           starter={question.starter}
           isClosed={sessionClosed}
           exerciseSlug={sessionState.exercise_slug}
+          onDirtyChange={setIsDirty}
+          testCases={question.test_cases ?? undefined}
+          documentationLinks={question.documentation_links ?? undefined}
         />
       ) : (
         <ResponseEditor
           sessionId={sessionState.session_id}
           questionIndex={activeIndex}
           isClosed={sessionClosed}
+          onDirtyChange={setIsDirty}
         />
       )}
 
       {/* Navigation */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         {!isViewingCurrent ? (
-          <button onClick={() => setViewingIndex(null)} className="btn btn-ghost">
+          <button onClick={() => guardNavigation(() => setViewingIndex(null))} className="btn btn-ghost">
             ← Back to Current
           </button>
         ) : <div />}
@@ -315,13 +373,23 @@ export default function SessionView({ exerciseId }: { exerciseId: string }) {
         {isViewingCurrent && sessionState.current_question_index + 1 < sessionState.question_count && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
             {advanceError && <span style={{ fontSize: 12, color: 'var(--red)' }}>{advanceError}</span>}
-            <button
-              onClick={handleAdvance}
-              disabled={sessionClosed || advancing}
-              className="btn btn-primary btn-lg"
-            >
-              {advancing ? 'Advancing…' : 'Next Question →'}
-            </button>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                onClick={() => guardNavigation(handleSkip)}
+                disabled={sessionClosed || advancing}
+                className="btn btn-ghost"
+                title="Skip this question and come back later"
+              >
+                Skip →
+              </button>
+              <button
+                onClick={() => guardNavigation(handleAdvance)}
+                disabled={sessionClosed || advancing}
+                className="btn btn-primary btn-lg"
+              >
+                {advancing ? 'Advancing…' : 'Next Question →'}
+              </button>
+            </div>
           </div>
         )}
 
@@ -329,7 +397,7 @@ export default function SessionView({ exerciseId }: { exerciseId: string }) {
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
             {advanceError && <span style={{ fontSize: 12, color: 'var(--red)' }}>{advanceError}</span>}
             <button
-              onClick={handleSubmitFinal}
+              onClick={() => guardNavigation(handleSubmitFinal)}
               disabled={sessionClosed || advancing}
               className="btn btn-success btn-lg"
             >
@@ -338,6 +406,41 @@ export default function SessionView({ exerciseId }: { exerciseId: string }) {
           </div>
         )}
       </div>
+
+      {/* Unsaved changes warning modal */}
+      {showUnsavedWarning && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div style={{
+            background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 'var(--radius-lg)',
+            padding: '1.75rem', maxWidth: 400, width: '90%', display: 'flex', flexDirection: 'column', gap: '1rem',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <AlertTriangle size={18} style={{ color: 'var(--orange)', flexShrink: 0 }} />
+              <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)' }}>Unsaved changes</span>
+            </div>
+            <p style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.6 }}>
+              Your latest edits haven&apos;t been saved to the server yet. If you continue, they may be lost.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button onClick={() => { setShowUnsavedWarning(false); setPendingAction(null); }} className="btn btn-ghost">
+                Stay
+              </button>
+              <button
+                onClick={() => {
+                  setShowUnsavedWarning(false);
+                  if (pendingAction) { pendingAction(); setPendingAction(null); }
+                }}
+                className="btn btn-danger"
+              >
+                Continue anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

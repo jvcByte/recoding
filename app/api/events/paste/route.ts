@@ -14,11 +14,13 @@ export async function POST(req: NextRequest) {
   const userId = session.user.id;
 
   const body = await req.json();
-  const { submission_id, char_count, pasted_text, occurred_at } = body as {
+  const { submission_id, char_count, pasted_text, occurred_at, tab_was_blurred, source_type } = body as {
     submission_id: string;
     char_count: number;
     pasted_text?: string | null;
     occurred_at: string;
+    tab_was_blurred?: boolean;
+    source_type?: 'internal' | 'external' | 'unknown';
   };
 
   if (!submission_id || char_count == null || !occurred_at) {
@@ -41,8 +43,11 @@ export async function POST(req: NextRequest) {
 
   // Insert paste event
   const inserted = await sql`
-    INSERT INTO paste_events (submission_id, char_count, pasted_text, occurred_at)
-    VALUES (${submission_id}, ${char_count}, ${pasted_text ?? null}, ${occurred_at})
+    INSERT INTO paste_events (submission_id, char_count, pasted_text, occurred_at, tab_was_blurred, source_type)
+    VALUES (
+      ${submission_id}, ${char_count}, ${pasted_text ?? null}, ${occurred_at},
+      ${tab_was_blurred ?? false}, ${source_type ?? 'unknown'}
+    )
     RETURNING id
   `;
 

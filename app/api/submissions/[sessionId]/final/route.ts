@@ -65,7 +65,8 @@ export async function POST(
   // Mark as final
   await sql`
     UPDATE submissions
-    SET is_final = true
+    SET is_final = true,
+        status   = 'final'
     WHERE id = ${submission.id}
   `;
 
@@ -82,7 +83,7 @@ export async function POST(
   const finalCountRows = await sql`
     SELECT COUNT(*)::int AS count
     FROM submissions
-    WHERE session_id = ${sessionId} AND is_final = true
+    WHERE session_id = ${sessionId} AND status = 'final'
   `;
   const finalCount = (finalCountRows[0]?.count as number) ?? 0;
 

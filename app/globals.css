@@ -437,6 +437,9 @@ tbody tr:hover td { color: var(--text); }
   animation: pulse 1.2s ease-in-out infinite;
 }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.animate-spin { animation: spin 1s linear infinite; }
 
 /* ── Login ── */
 .login-page {

@@ -45,7 +45,8 @@ export async function GET(
 
   // Load question from database
   const questionRows = await sql`
-    SELECT question_index, text, type, language, starter
+    SELECT question_index, text, type, language, starter, points, test_cases,
+           allowed_packages, required_package, documentation_links
     FROM questions
     WHERE exercise_id = ${exerciseId}
       AND question_index = ${questionIndex}
@@ -64,5 +65,10 @@ export async function GET(
     type: q.type,
     language: q.language,
     starter: q.starter,
+    points: q.points ?? null,
+    test_cases: q.test_cases ?? null,
+    allowed_packages: q.allowed_packages ?? null,
+    required_package: q.required_package ?? null,
+    documentation_links: q.documentation_links ?? null,
   });
 }
