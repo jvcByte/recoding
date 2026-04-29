@@ -110,7 +110,7 @@ export async function GET(
   }
 
   const submissions = await sql`
-    SELECT question_index, is_final,
+    SELECT question_index, is_final, status,
            (response_text IS NOT NULL AND response_text <> '') AS has_draft
     FROM submissions WHERE session_id = ${row.id}
   `;
@@ -126,6 +126,7 @@ export async function GET(
       question_index: s.question_index,
       has_draft: Boolean(s.has_draft),
       is_final: Boolean(s.is_final),
+      status: (s.status as string) ?? (s.is_final ? 'final' : s.has_draft ? 'draft' : 'not_started'),
     })),
   });
 }

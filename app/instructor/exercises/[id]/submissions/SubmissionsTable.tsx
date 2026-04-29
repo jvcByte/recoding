@@ -2,14 +2,35 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Flag, ChevronDown, ChevronRight } from 'lucide-react';
+import { Flag, ChevronDown, ChevronRight, ShieldCheck, ShieldX, RotateCcw } from 'lucide-react';
 import SearchInput from '@/app/components/SearchInput';
+import { toast } from 'sonner';
 import type { ParticipantRow } from './page';
 
 export default function SubmissionsTable({ participants }: { participants: ParticipantRow[] }) {
   const [search, setSearch] = useState('');
   const [filterFlagged, setFilterFlagged] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [overriding, setOverriding] = useState<string | null>(null);
+  const [localOverride, setLocalOverride] = useState<Record<string, boolean | null>>({});
+
+  async function handleOverride(sessionId: string, value: boolean | null) {
+    setOverriding(sessionId);
+    try {
+      const res = await fetch(`/api/instructor/sessions/${sessionId}/override-pass`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passed_override: value }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      setLocalOverride((prev) => ({ ...prev, [sessionId]: value }));
+      toast.success(value === true ? 'Manually passed' : value === false ? 'Manually failed' : 'Override cleared');
+    } catch {
+      toast.error('Failed to update');
+    } finally {
+      setOverriding(null);
+    }
+  }
 
   const filtered = participants.filter((p) => {
     const matchSearch = p.username.toLowerCase().includes(search.toLowerCase());
@@ -63,7 +84,11 @@ export default function SubmissionsTable({ participants }: { participants: Parti
             <tbody>
               {filtered.map((p) => {
                 const isExpanded = expanded.has(p.session_id);
-                const passing = p.passed;
+                // local override takes precedence over DB value
+                const effectivePassed = p.session_id in localOverride
+                  ? localOverride[p.session_id]
+                  : p.passed;
+                const isOverridden = p.passed_override !== null || p.session_id in localOverride;
 
                 return (
                   <>
@@ -98,14 +123,51 @@ export default function SubmissionsTable({ participants }: { participants: Parti
                       </td>
                       <td style={{
                         fontWeight: 600,
-                        color: passing === false ? 'var(--red)' : passing === true ? 'var(--green)' : 'var(--text)',
+                        color: effectivePassed === false ? 'var(--red)' : effectivePassed === true ? 'var(--green)' : 'var(--text)',
                       }}>
                         {p.score !== null ? `${p.score.toFixed(1)}%` : '—'}
-                        {passing === true && <span style={{ marginLeft: 4, fontSize: 10, color: 'var(--green)' }}>✓</span>}
-                        {passing === false && <span style={{ marginLeft: 4, fontSize: 10, color: 'var(--red)' }}>✗</span>}
+                        {effectivePassed === true && <span style={{ marginLeft: 4, fontSize: 10, color: 'var(--green)' }}>✓</span>}
+                        {effectivePassed === false && <span style={{ marginLeft: 4, fontSize: 10, color: 'var(--red)' }}>✗</span>}
+                        {isOverridden && <span style={{ marginLeft: 4, fontSize: 9, color: 'var(--text3)', fontWeight: 400 }}>(manual)</span>}
                       </td>
                       <td style={{ color: 'var(--text3)', fontSize: 12 }}>{p.last_submitted_at}</td>
-                      <td onClick={(e) => e.stopPropagation()} />
+                      <td onClick={(e) => e.stopPropagation()}>
+                        <div style={{ display: 'flex', gap: '0.3rem' }}>
+                          {effectivePassed !== true && (
+                            <button
+                              className="btn btn-sm btn-success"
+                              disabled={overriding === p.session_id}
+                              onClick={() => handleOverride(p.session_id, true)}
+                              title="Manually pass"
+                              style={{ fontSize: 11 }}
+                            >
+                              <ShieldCheck size={11} /> Pass
+                            </button>
+                          )}
+                          {effectivePassed !== false && (
+                            <button
+                              className="btn btn-sm btn-danger"
+                              disabled={overriding === p.session_id}
+                              onClick={() => handleOverride(p.session_id, false)}
+                              title="Manually fail"
+                              style={{ fontSize: 11 }}
+                            >
+                              <ShieldX size={11} /> Fail
+                            </button>
+                          )}
+                          {isOverridden && (
+                            <button
+                              className="btn btn-sm btn-ghost"
+                              disabled={overriding === p.session_id}
+                              onClick={() => handleOverride(p.session_id, null)}
+                              title="Clear override"
+                              style={{ fontSize: 11 }}
+                            >
+                              <RotateCcw size={11} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
                     </tr>
 
                     {/* Expanded question rows */}

@@ -21,12 +21,13 @@ const MIN_RESPONSE_LENGTH_FOR_EDIT_CHECK = parseInt(process.env.FLAG_MIN_RESPONS
 export async function evaluateFlags(submissionId: string): Promise<FlagResult> {
   const flag_reasons: string[] = [];
 
-  // Look up the exercise's max_paste_chars threshold for this submission
+  // Look up the exercise's max_paste_chars threshold and question starter code for this submission
   const thresholdResult = await sql`
-    SELECT e.max_paste_chars, e.max_focus_loss, e.min_edit_events, e.min_response_length
+    SELECT e.max_paste_chars, e.max_focus_loss, e.min_edit_events, e.min_response_length, q.starter
     FROM submissions sub
     JOIN sessions sess ON sess.id = sub.session_id
     JOIN exercises e ON e.id = sess.exercise_id
+    JOIN questions q ON q.exercise_id = sess.exercise_id AND q.question_index = sub.question_index
     WHERE sub.id = ${submissionId}
     LIMIT 1
   `;
@@ -35,19 +36,23 @@ export async function evaluateFlags(submissionId: string): Promise<FlagResult> {
   const focusLossThreshold = maxFocusLoss ?? FOCUS_LOSS_THRESHOLD;
   const minEditEvents = (thresholdResult[0]?.min_edit_events as number | null) ?? MIN_EDIT_EVENTS;
   const minResponseLength = (thresholdResult[0]?.min_response_length as number | null) ?? MIN_RESPONSE_LENGTH_FOR_EDIT_CHECK;
+  const starterCode: string = (thresholdResult[0]?.starter as string) ?? '';
 
   // Count paste events that exceed the threshold (or all paste events if no threshold set)
+  // Only flag if: char_count > threshold AND (tab_was_blurred OR source_type = 'external')
   const pasteResult = maxPasteChars !== null
     ? await sql`
         SELECT COUNT(*)::int AS count
         FROM paste_events
         WHERE submission_id = ${submissionId}
           AND char_count > ${maxPasteChars}
+          AND (tab_was_blurred = true OR source_type = 'external')
       `
     : await sql`
         SELECT COUNT(*)::int AS count
         FROM paste_events
         WHERE submission_id = ${submissionId}
+          AND (tab_was_blurred = true OR source_type = 'external' OR source_type = 'unknown')
       `;
   const pasteCount: number = (pasteResult[0]?.count as number) ?? 0;
 
@@ -71,7 +76,7 @@ export async function evaluateFlags(submissionId: string): Promise<FlagResult> {
     );
   }
 
-  // Count edit events and check response length
+  // Count edit events and check response length (excluding starter code)
   const editResult = await sql`
     SELECT COUNT(*)::int AS edit_count, s.response_text
     FROM edit_events ee
@@ -83,13 +88,14 @@ export async function evaluateFlags(submissionId: string): Promise<FlagResult> {
   if (editResult.length > 0) {
     const editCount: number = editResult[0].edit_count as number;
     const responseText: string = (editResult[0].response_text as string) ?? '';
+    const addedLength = Math.max(0, responseText.length - starterCode.length);
 
     if (
-      responseText.length > minResponseLength &&
+      addedLength > minResponseLength &&
       editCount < minEditEvents
     ) {
       flag_reasons.push(
-        `low_edit_count: only ${editCount} edit event(s) for a ${responseText.length}-character response`
+        `low_edit_count: only ${editCount} edit event(s) for a ${addedLength}-character response (excluding ${starterCode.length}-character starter code)`
       );
     }
   } else {
@@ -97,10 +103,11 @@ export async function evaluateFlags(submissionId: string): Promise<FlagResult> {
       SELECT response_text FROM submissions WHERE id = ${submissionId}
     `;
     const responseText: string = (submissionResult[0]?.response_text as string) ?? '';
+    const addedLength = Math.max(0, responseText.length - starterCode.length);
 
-    if (responseText.length > minResponseLength) {
+    if (addedLength > minResponseLength) {
       flag_reasons.push(
-        `low_edit_count: 0 edit event(s) for a ${responseText.length}-character response`
+        `low_edit_count: 0 edit event(s) for a ${addedLength}-character response (excluding ${starterCode.length}-character starter code)`
       );
     }
   }

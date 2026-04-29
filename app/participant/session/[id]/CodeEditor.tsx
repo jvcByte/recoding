@@ -5,6 +5,9 @@ import Editor, { OnMount, loader } from '@monaco-editor/react';
 import type * as Monaco from 'monaco-editor';
 import { Play } from 'lucide-react';
 import { toast } from 'sonner';
+import SaveStatusIndicator, { SaveStatus } from './SaveStatusIndicator';
+import DocsViewer from './DocsViewer';
+import { enqueueFailedAutosave } from '@/lib/offline-queue';
 
 // Define both themes matching the site palette
 loader.init().then((monaco) => {
@@ -98,16 +101,23 @@ interface Props {
   starter: string;
   isClosed: boolean;
   exerciseSlug: string;
+  onDirtyChange?: (dirty: boolean) => void;
+  testCases?: Array<{ input: string; expected_output: string }>;
+  documentationLinks?: Array<{ package?: string; url: string; label?: string }>;
 }
 
-export default function CodeEditor({ sessionId, questionIndex, language, starter, isClosed, exerciseSlug }: Props) {
+export default function CodeEditor({ sessionId, questionIndex, language, starter, isClosed, exerciseSlug, onDirtyChange, testCases, documentationLinks }: Props) {
   const [code, setCode] = useState(starter);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<RunResult | null>(null);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle');
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [stdin, setStdin] = useState('');
   const [showStdin, setShowStdin] = useState(exerciseSlug === 'go-reloaded');
   const [editorTheme, setEditorTheme] = useState('recoding-dark');
+  const [syntaxWarning, setSyntaxWarning] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<Array<{ input: string; expected: string; actual: string; passed: boolean }> | null>(null);
+  const [runningTests, setRunningTests] = useState(false);
+  const [showDocs, setShowDocs] = useState(false);
 
   const codeRef = useRef(code);
   codeRef.current = code;
@@ -117,6 +127,25 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
   const prevLengthRef = useRef(starter.length);
   const focusLostAtRef = useRef<string | null>(null);
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
+
+  // ── Local storage backup helpers ──────────────────────────────────────────
+  const saveToLocalStorage = useCallback((sessionId: string, questionIndex: number, code: string) => {
+    const key = `autosave:${sessionId}:${questionIndex}`;
+    try {
+      localStorage.setItem(key, code);
+    } catch (err) {
+      console.error('Failed to save to localStorage:', err);
+    }
+  }, []);
+
+  const clearLocalStorage = useCallback((sessionId: string, questionIndex: number) => {
+    const key = `autosave:${sessionId}:${questionIndex}`;
+    try {
+      localStorage.removeItem(key);
+    } catch (err) {
+      console.error('Failed to clear localStorage:', err);
+    }
+  }, []);
 
   // Sync Monaco theme with site theme
   useEffect(() => {
@@ -158,6 +187,10 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
     const current = codeRef.current;
     if (current === lastSavedRef.current || isClosed) return;
     setSaveStatus('saving');
+    
+    // Save to localStorage before attempting server sync
+    saveToLocalStorage(sessionId, questionIndex, current);
+    
     try {
       const res = await fetch(`/api/submissions/${sessionId}/autosave`, {
         method: 'POST',
@@ -180,15 +213,26 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
 
         lastSavedRef.current = current;
         setSaveStatus('saved');
+        onDirtyChange?.(false);
+        
+        // Clear localStorage on successful server save
+        clearLocalStorage(sessionId, questionIndex);
       } else {
-        setSaveStatus('failed');
-        toast.error('Save failed');
+        // Server error - add to offline queue
+        setSaveStatus('error');
+        enqueueFailedAutosave(sessionId, questionIndex, current);
+        toast.error('Save failed - will retry when online');
       }
-    } catch { setSaveStatus('failed'); toast.error('Save failed'); }
-  }, [sessionId, questionIndex, isClosed]);
+    } catch (err) {
+      // Network error - likely offline
+      setSaveStatus('offline');
+      enqueueFailedAutosave(sessionId, questionIndex, current);
+      toast.error('Offline - changes saved locally');
+    }
+  }, [sessionId, questionIndex, isClosed, saveToLocalStorage, clearLocalStorage]);
 
   useEffect(() => {
-    const t = setInterval(doAutosave, 30_000);
+    const t = setInterval(doAutosave, 3_000);
     return () => clearInterval(t);
   }, [doAutosave]);
 
@@ -204,6 +248,13 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
         : '';
       const charCount = pastedText.length;
       const occurredAt = new Date().toISOString();
+      const tabWasBlurred = focusLostAtRef.current !== null &&
+        (Date.now() - new Date(focusLostAtRef.current).getTime()) < 5000;
+
+      // Detect internal paste: pasted text exists in the current code before this paste
+      const existingCode = codeRef.current;
+      const isInternal = pastedText.length > 0 && existingCode.includes(pastedText);
+      const sourceType = isInternal ? 'internal' : (tabWasBlurred ? 'external' : 'unknown');
 
       // Show toast instead of banner
       toast.warning('Paste detected — this activity is being recorded', { duration: 4000 });
@@ -213,7 +264,14 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
         fetch('/api/events/paste', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ submission_id: submissionId, char_count: charCount, pasted_text: pastedText, occurred_at: occurredAt }),
+          body: JSON.stringify({
+            submission_id: submissionId,
+            char_count: charCount,
+            pasted_text: pastedText,
+            occurred_at: occurredAt,
+            tab_was_blurred: tabWasBlurred,
+            source_type: sourceType,
+          }),
         }).catch(() => {});
       };
 
@@ -246,46 +304,27 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
     });
   }, [doAutosave]);
 
-  // ── Focus / visibility monitoring ─────────────────────────────────────────
+  // ── Focus / blur tracking for paste context ───────────────────────────────
   useEffect(() => {
-    if (isClosed) return;
-
-    function recordFocusLoss() {
-      if (focusLostAtRef.current === null) focusLostAtRef.current = new Date().toISOString();
-    }
-
-    function recordFocusRegain() {
-      const lostAt = focusLostAtRef.current;
-      if (!lostAt) return;
-      const regainedAt = new Date().toISOString();
-      const durationMs = new Date(regainedAt).getTime() - new Date(lostAt).getTime();
-      focusLostAtRef.current = null;
-      fetch('/api/events/focus', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: sessionId, lost_at: lostAt, regained_at: regainedAt, duration_ms: durationMs }),
-      }).catch(() => {});
-    }
-
-    function handleVisibility() {
-      if (document.visibilityState === 'hidden') recordFocusLoss();
-      else recordFocusRegain();
-    }
-
-    document.addEventListener('visibilitychange', handleVisibility);
-    window.addEventListener('blur', recordFocusLoss);
-    window.addEventListener('focus', recordFocusRegain);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibility);
-      window.removeEventListener('blur', recordFocusLoss);
-      window.removeEventListener('focus', recordFocusRegain);
+    const handleBlur = () => { focusLostAtRef.current = new Date().toISOString(); };
+    const handleFocus = () => { /* keep focusLostAt until paste fires */ };
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') focusLostAtRef.current = new Date().toISOString();
     };
-  }, [sessionId, isClosed]);
-
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, []);
   // ── Run code ──────────────────────────────────────────────────────────────
   async function runCode() {
     setRunning(true);
     setResult(null);
+    setSyntaxWarning(null);
     await doAutosave();
     try {
       const res = await fetch('/api/run-code', {
@@ -294,7 +333,14 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
         body: JSON.stringify({ code: codeRef.current, language, stdin, exercise: exerciseSlug }),
       });
       const data = await res.json();
-      setResult(res.ok ? data as RunResult : { stdout: '', stderr: data.error ?? 'Unknown error', compile_output: '', exit_code: 1 });
+      const runResult = res.ok ? data as RunResult : { stdout: '', stderr: data.error ?? 'Unknown error', compile_output: '', exit_code: 1 };
+      setResult(runResult);
+      // Surface compile errors as syntax warning
+      if (runResult.compile_output && runResult.compile_output.trim().length > 0) {
+        setSyntaxWarning('Compile error detected — fix before submitting');
+      } else {
+        setSyntaxWarning(null);
+      }
     } catch (err) {
       setResult({ stdout: '', stderr: (err as Error).message, compile_output: '', exit_code: 1 });
     } finally {
@@ -305,6 +351,30 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
   const hasOutput = result !== null;
   const success = result?.exit_code === 0;
 
+  async function runTests() {
+    if (!testCases || testCases.length === 0) return;
+    setRunningTests(true);
+    setTestResults(null);
+    const results: Array<{ input: string; expected: string; actual: string; passed: boolean }> = [];
+    for (const tc of testCases) {
+      try {
+        const res = await fetch('/api/run-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: codeRef.current, language, stdin: tc.input, exercise: exerciseSlug }),
+        });
+        const data = await res.json();
+        const actual = (data.stdout ?? '').trim();
+        const expected = tc.expected_output.trim();
+        results.push({ input: tc.input, expected, actual, passed: actual === expected });
+      } catch {
+        results.push({ input: tc.input, expected: tc.expected_output, actual: 'Error', passed: false });
+      }
+    }
+    setTestResults(results);
+    setRunningTests(false);
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
       {/* Toolbar */}
@@ -313,11 +383,22 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
           {language}
         </span>
         <div style={{ flex: 1 }} />
-        {saveStatus === 'saving' && <span style={{ fontSize: 12, color: 'var(--text3)' }}>Saving…</span>}
-        {saveStatus === 'saved' && <span style={{ fontSize: 12, color: 'var(--green)' }}>Saved</span>}
-        {saveStatus === 'failed' && <span style={{ fontSize: 12, color: 'var(--red)' }}>Save failed</span>}
+        <SaveStatusIndicator status={saveStatus} />
+        {syntaxWarning && (
+          <span style={{ fontSize: 11, color: 'var(--red)', display: 'flex', alignItems: 'center', gap: 4 }}>
+            ⚠ {syntaxWarning}
+          </span>
+        )}
         <button onClick={() => setShowStdin((s) => !s)} className="btn btn-ghost btn-sm">
           {showStdin ? 'Hide stdin' : 'stdin'}
+        </button>
+        {testCases && testCases.length > 0 && (
+          <button onClick={runTests} disabled={runningTests || isClosed} className="btn btn-secondary btn-sm">
+            {runningTests ? 'Testing…' : `Run Tests (${testCases.length})`}
+          </button>
+        )}
+        <button onClick={() => setShowDocs((s) => !s)} className="btn btn-ghost btn-sm">
+          {showDocs ? 'Hide Docs' : 'Docs'}
         </button>
         <button onClick={runCode} disabled={running || isClosed} className="btn btn-success" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <Play size={13} /> {running ? 'Running…' : 'Run'}
@@ -344,7 +425,7 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
           height="420px"
           language={language}
           value={code}
-          onChange={(val) => { setCode(val ?? ''); setSaveStatus('idle'); }}
+          onChange={(val) => { setCode(val ?? ''); setSaveStatus('idle'); onDirtyChange?.(true); }}
           onMount={handleEditorMount}
           theme={editorTheme}
           options={{
@@ -403,6 +484,62 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
       {running && !result && (
         <div style={{ textAlign: 'center', color: 'var(--text3)', fontSize: 13, padding: '1rem' }}>
           Compiling and running…
+        </div>
+      )}
+
+      {/* Docs Panel */}
+      {showDocs && (
+        <DocsViewer
+          language={language}
+          documentationLinks={documentationLinks}
+          onClose={() => setShowDocs(false)}
+        />
+      )}
+
+      {/* Test Results Panel */}      {testResults && (
+        <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--border)', background: 'var(--bg3)' }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Test Results</span>
+            <span className={`badge ${testResults.every((r) => r.passed) ? 'badge-green' : 'badge-red'}`}>
+              {testResults.filter((r) => r.passed).length}/{testResults.length} passed
+            </span>
+            <button onClick={() => setTestResults(null)} className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }}>Clear</button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+            {testResults.map((r, i) => (
+              <div key={i} style={{
+                padding: '0.6rem 0.75rem',
+                borderBottom: i < testResults.length - 1 ? '1px solid var(--border)' : undefined,
+                background: r.passed ? 'rgba(16,185,129,0.04)' : 'rgba(239,68,68,0.04)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: r.passed ? 'var(--green)' : 'var(--red)' }}>
+                    {r.passed ? '✓' : '✗'} Test {i + 1}
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', fontSize: 11 }}>
+                  <div>
+                    <div style={{ color: 'var(--text3)', marginBottom: 2 }}>Input</div>
+                    <pre style={{ margin: 0, color: 'var(--text2)', fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{r.input || '(empty)'}</pre>
+                  </div>
+                  <div>
+                    <div style={{ color: 'var(--text3)', marginBottom: 2 }}>Expected</div>
+                    <pre style={{ margin: 0, color: 'var(--green)', fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{r.expected}</pre>
+                  </div>
+                  <div>
+                    <div style={{ color: 'var(--text3)', marginBottom: 2 }}>Actual</div>
+                    <pre style={{ margin: 0, color: r.passed ? 'var(--green)' : 'var(--red)', fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{r.actual || '(empty)'}</pre>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {runningTests && (
+        <div style={{ textAlign: 'center', color: 'var(--text3)', fontSize: 13, padding: '1rem' }}>
+          Running tests…
         </div>
       )}
     </div>

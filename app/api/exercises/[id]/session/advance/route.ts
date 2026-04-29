@@ -16,6 +16,13 @@ export async function POST(
   const userId = session.user.id;
   const exerciseId = params.id;
 
+  // Parse optional skip flag
+  let skip = false;
+  try {
+    const body = await _req.json().catch(() => ({}));
+    skip = !!(body as { skip?: boolean }).skip;
+  } catch { /* no body */ }
+
   // Look up the session for this exercise + user
   const rows = await sql`
     SELECT s.id, s.closed_at, s.current_question_index, e.question_count
@@ -47,14 +54,30 @@ export async function POST(
     );
   }
 
-  // Lock the current question's submission by marking it final
-  await sql`
-    UPDATE submissions
-    SET is_final = true
-    WHERE session_id = ${row.id}
-      AND question_index = ${currentIndex}
-      AND is_final = false
-  `;
+  if (skip) {
+    // Mark current question as skipped (upsert so it works even without a draft)
+    await sql`
+      INSERT INTO submissions (session_id, question_index, response_text, submitted_at, status)
+      VALUES (${row.id}, ${currentIndex}, '', now(), 'skipped')
+      ON CONFLICT (session_id, question_index)
+      DO UPDATE SET status = 'skipped'
+      WHERE submissions.is_final = false
+    `;
+  } else {
+    // Lock the current question's submission by marking it final (only if actually attempted)
+    await sql`
+      UPDATE submissions
+      SET is_final = true,
+          status   = 'final'
+      WHERE session_id = ${row.id}
+        AND question_index = ${currentIndex}
+        AND is_final = false
+        AND (
+          LENGTH(TRIM(COALESCE(response_text, ''))) > 0
+          OR EXISTS (SELECT 1 FROM edit_events ee WHERE ee.submission_id = submissions.id)
+        )
+    `;
+  }
 
   // Advance to the next question
   const updated = await sql`
@@ -66,5 +89,5 @@ export async function POST(
 
   const newIndex: number = updated[0].current_question_index as number;
 
-  return NextResponse.json({ new_index: newIndex }, { status: 200 });
+  return NextResponse.json({ new_index: newIndex, skipped: skip }, { status: 200 });
 }

@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
   const effectiveStdin = stdin || (language === 'go' && BANNER_EXERCISE_SLUGS.has(exercise) ? getBannerContent() : '');
 
   try {
-    const res = await fetch(`${RUNNER_URL}/run`, {
+    const res = await fetchWithRetry(`${RUNNER_URL}/run`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -70,7 +70,11 @@ export async function POST(req: NextRequest) {
     if (!res.ok) {
       const text = await res.text();
       console.error('[run-code] Runner error:', text);
-      return NextResponse.json({ error: 'Execution service unavailable' }, { status: 502 });
+      return NextResponse.json({
+        error: 'Execution service unavailable',
+        error_category: 'platform',
+        error_message: 'Platform error: The execution service returned an error. Please try again.',
+      }, { status: 502 });
     }
 
     const result = await res.json() as {
@@ -80,9 +84,68 @@ export async function POST(req: NextRequest) {
       compile_output: string;
     };
 
-    return NextResponse.json(result);
+    // Categorize errors for better user feedback
+    const categorized = categorizeRunResult(result);
+    return NextResponse.json(categorized);
   } catch (err) {
     console.error('[run-code] fetch error:', (err as Error).message);
-    return NextResponse.json({ error: 'Execution service unavailable' }, { status: 502 });
+    return NextResponse.json({
+      error: 'Execution service unavailable',
+      error_category: 'platform',
+      error_message: 'Platform error: Could not reach the code execution service. Please try again or report this issue.',
+    }, { status: 502 });
   }
+}
+
+type RunResult = {
+  stdout: string;
+  stderr: string;
+  exit_code: number;
+  compile_output: string;
+  error_category?: 'syntax' | 'runtime' | 'timeout' | 'platform';
+  error_message?: string;
+};
+
+async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 2): Promise<Response> {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await fetch(url, options);
+      // Only retry on 5xx transient errors, not 4xx
+      if (res.status >= 500 && attempt < maxRetries) {
+        console.warn(`[run-code] Attempt ${attempt + 1} failed with ${res.status}, retrying…`);
+        await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+        continue;
+      }
+      return res;
+    } catch (err) {
+      lastError = err as Error;
+      if (attempt < maxRetries) {
+        console.warn(`[run-code] Attempt ${attempt + 1} network error, retrying…`);
+        await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+      }
+    }
+  }
+  throw lastError ?? new Error('Max retries exceeded');
+}
+
+function categorizeRunResult(result: RunResult): RunResult {
+  const { stderr, compile_output, exit_code } = result;
+
+  // Timeout
+  if (exit_code === 124 || (stderr && /time limit|timed out|killed/i.test(stderr))) {
+    return { ...result, error_category: 'timeout', error_message: 'Execution exceeded the 5 second time limit.' };
+  }
+
+  // Compile/syntax error
+  if (compile_output && compile_output.trim().length > 0) {
+    return { ...result, error_category: 'syntax', error_message: 'Your code has a syntax or compile error. Check the compile output below.' };
+  }
+
+  // Runtime error (non-zero exit, stderr present)
+  if (exit_code !== 0 && stderr && stderr.trim().length > 0) {
+    return { ...result, error_category: 'runtime', error_message: `Your code crashed with exit code ${exit_code}.` };
+  }
+
+  return result;
 }

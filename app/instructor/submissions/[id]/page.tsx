@@ -37,7 +37,7 @@ export default async function SubmissionDetailPage({ params }: Props) {
 
   const [autosaveRows, pasteRows, focusRows, editRows] = await Promise.all([
     sql`SELECT id, response_text, saved_at FROM autosave_history WHERE submission_id = ${submissionId} ORDER BY saved_at ASC`,
-    sql`SELECT id, char_count, pasted_text, occurred_at FROM paste_events WHERE submission_id = ${submissionId} ORDER BY occurred_at ASC`,
+    sql`SELECT id, char_count, pasted_text, occurred_at, tab_was_blurred, source_type FROM paste_events WHERE submission_id = ${submissionId} ORDER BY occurred_at ASC`,
     sql`SELECT id, lost_at, regained_at, duration_ms FROM focus_events WHERE session_id = ${sub.session_id} ORDER BY lost_at ASC`,
     sql`SELECT id, event_type, position, char_count, occurred_at FROM edit_events WHERE submission_id = ${submissionId} ORDER BY occurred_at ASC`,
   ]);
@@ -139,12 +139,24 @@ export default async function SubmissionDetailPage({ params }: Props) {
                 </div>
                 <div className="table-wrap">
                   <table>
-                    <thead><tr><th>#</th><th>Chars Pasted</th><th>Pasted Text</th><th>Occurred At</th></tr></thead>
+                    <thead><tr><th>#</th><th>Chars Pasted</th><th>Tab Blurred</th><th>Source</th><th>Pasted Text</th><th>Occurred At</th></tr></thead>
                     <tbody>
-                      {(pasteRows as { id: string; char_count: number; pasted_text: string | null; occurred_at: string }[]).map((ev, i) => (
+                      {(pasteRows as { id: string; char_count: number; pasted_text: string | null; occurred_at: string; tab_was_blurred: boolean | null; source_type: string | null }[]).map((ev, i) => (
                         <tr key={ev.id}>
                           <td style={{ color: 'var(--text3)' }}>{i + 1}</td>
                           <td style={{ color: 'var(--red)', fontWeight: 700 }}>{ev.char_count}</td>
+                          <td>
+                            {ev.tab_was_blurred
+                              ? <span className="badge badge-red">Yes</span>
+                              : <span className="badge badge-gray">No</span>}
+                          </td>
+                          <td>
+                            {ev.source_type === 'external'
+                              ? <span className="badge badge-red">External</span>
+                              : ev.source_type === 'internal'
+                                ? <span className="badge badge-green">Internal</span>
+                                : <span className="badge badge-gray">Unknown</span>}
+                          </td>
                           <td style={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12, color: 'var(--text2)', fontFamily: 'monospace' }}>
                             {ev.pasted_text ?? <span style={{ color: 'var(--text3)' }}>—</span>}
                           </td>
