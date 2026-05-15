@@ -119,47 +119,35 @@ export default function SessionView({ exerciseId }: { exerciseId: string }) {
   // Local countdown — ticks every second, synced from server every 10s
   const [localRemaining, setLocalRemaining] = useState<number | null>(null);
 
-  // Centralized focus tracking to prevent duplicates
+  // Centralized focus tracking — use visibilitychange only to avoid double-firing
   useEffect(() => {
     if (!sessionState || sessionClosed) return;
 
     let focusLostAt: number | null = null;
 
-    const recordFocusLoss = () => {
-      if (focusLostAt !== null) return; // Already lost
-      focusLostAt = Date.now();
-    };
-
-    const recordFocusRegain = async () => {
-      if (focusLostAt === null) return; // Wasn't lost
-      const duration = Date.now() - focusLostAt;
-      focusLostAt = null;
-
-      try {
-        await fetch('/api/events/focus', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session_id: sessionState.session_id, duration_ms: duration }),
-        });
-      } catch (err) {
-        console.error('Failed to record focus event:', err);
+    const handleVisibility = async () => {
+      if (document.visibilityState === 'hidden') {
+        // Tab hidden — record loss time
+        if (focusLostAt === null) focusLostAt = Date.now();
+      } else {
+        // Tab visible again — record the event
+        if (focusLostAt === null) return;
+        const duration = Date.now() - focusLostAt;
+        focusLostAt = null;
+        try {
+          await fetch('/api/events/focus', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: sessionState.session_id, duration_ms: duration }),
+          });
+        } catch (err) {
+          console.error('Failed to record focus event:', err);
+        }
       }
     };
 
-    const handleVisibility = () => {
-      if (document.visibilityState === 'hidden') recordFocusLoss();
-      else recordFocusRegain();
-    };
-
     document.addEventListener('visibilitychange', handleVisibility);
-    window.addEventListener('blur', recordFocusLoss);
-    window.addEventListener('focus', recordFocusRegain);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibility);
-      window.removeEventListener('blur', recordFocusLoss);
-      window.removeEventListener('focus', recordFocusRegain);
-    };
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [sessionState, sessionClosed]);
 
   const fetchSession = useCallback(async () => {
@@ -369,6 +357,39 @@ export default function SessionView({ exerciseId }: { exerciseId: string }) {
             ← Back to Current
           </button>
         ) : <div />}
+
+        {/* When viewing a non-current (skipped/previous) question — allow submitting it as final */}
+        {!isViewingCurrent && !sessionClosed && (
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {advanceError && <span style={{ fontSize: 12, color: 'var(--red)' }}>{advanceError}</span>}
+            <button
+              onClick={async () => {
+                setAdvancing(true); setAdvanceError(null);
+                try {
+                  const res = await fetch(`/api/submissions/${sessionState.session_id}/final`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question_index: activeIndex }),
+                  });
+                  if (!res.ok) {
+                    const d = await res.json().catch(() => ({}));
+                    if ((d as { error?: string }).error !== 'Submission is already final') {
+                      setAdvanceError((d as { error?: string }).error ?? 'Failed to submit.');
+                      return;
+                    }
+                  }
+                  setViewingIndex(null);
+                  await fetchSession();
+                } catch { setAdvanceError('Network error.'); }
+                finally { setAdvancing(false); }
+              }}
+              disabled={advancing}
+              className="btn btn-success"
+            >
+              {advancing ? 'Submitting…' : 'Submit This Answer ✓'}
+            </button>
+          </div>
+        )}
 
         {isViewingCurrent && sessionState.current_question_index + 1 < sessionState.question_count && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>

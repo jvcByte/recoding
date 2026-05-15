@@ -23,7 +23,7 @@ function LoginForm() {  const searchParams = useSearchParams();
     setLoading(false);
 
     if (!result || result.error) {
-      toast.error(result?.error, {
+      toast.error(result?.error ?? 'Sign in failed', {
         style: { 
           border: 'red 1px solid', 
           background: '#ef44440f', 

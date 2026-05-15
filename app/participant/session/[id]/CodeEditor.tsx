@@ -85,6 +85,10 @@ interface RunResult {
   stderr: string;
   compile_output: string;
   exit_code: number | null;
+  error_category?: string;
+  error_message?: string;
+  tests_passed?: boolean;
+  test_results?: Array<{ input: string; expected: string; actual: string; passed: boolean }>;
 }
 
 interface EditEvent {
@@ -330,16 +334,29 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
       const res = await fetch('/api/run-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: codeRef.current, language, stdin, exercise: exerciseSlug }),
+        body: JSON.stringify({
+          code: codeRef.current,
+          language,
+          stdin,
+          exercise: exerciseSlug,
+          // Pass context so server can run test cases and persist result
+          session_id: sessionId,
+          question_index: questionIndex,
+          test_cases: testCases,
+        }),
       });
       const data = await res.json();
-      const runResult = res.ok ? data as RunResult : { stdout: '', stderr: data.error ?? 'Unknown error', compile_output: '', exit_code: 1 };
+      const runResult = res.ok ? data as RunResult : { stdout: '', stderr: data.error ?? 'Unknown error', compile_output: '', exit_code: 1, test_results: undefined as RunResult['test_results'] };
       setResult(runResult);
       // Surface compile errors as syntax warning
       if (runResult.compile_output && runResult.compile_output.trim().length > 0) {
         setSyntaxWarning('Compile error detected — fix before submitting');
       } else {
         setSyntaxWarning(null);
+      }
+      // If server ran test cases, show results inline
+      if (runResult.test_results) {
+        setTestResults(runResult.test_results);
       }
     } catch (err) {
       setResult({ stdout: '', stderr: (err as Error).message, compile_output: '', exit_code: 1 });
@@ -355,24 +372,28 @@ export default function CodeEditor({ sessionId, questionIndex, language, starter
     if (!testCases || testCases.length === 0) return;
     setRunningTests(true);
     setTestResults(null);
-    const results: Array<{ input: string; expected: string; actual: string; passed: boolean }> = [];
-    for (const tc of testCases) {
-      try {
-        const res = await fetch('/api/run-code', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: codeRef.current, language, stdin: tc.input, exercise: exerciseSlug }),
-        });
-        const data = await res.json();
-        const actual = (data.stdout ?? '').trim();
-        const expected = tc.expected_output.trim();
-        results.push({ input: tc.input, expected, actual, passed: actual === expected });
-      } catch {
-        results.push({ input: tc.input, expected: tc.expected_output, actual: 'Error', passed: false });
+    try {
+      const res = await fetch('/api/run-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: codeRef.current,
+          language,
+          exercise: exerciseSlug,
+          session_id: sessionId,
+          question_index: questionIndex,
+          test_cases: testCases,
+        }),
+      });
+      const data = await res.json();
+      if (data.test_results) {
+        setTestResults(data.test_results);
       }
+    } catch (err) {
+      setTestResults(testCases.map((tc) => ({ input: tc.input, expected: tc.expected_output, actual: 'Error', passed: false })));
+    } finally {
+      setRunningTests(false);
     }
-    setTestResults(results);
-    setRunningTests(false);
   }
 
   return (

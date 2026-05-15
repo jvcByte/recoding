@@ -27,13 +27,13 @@ export const authOptions: NextAuthOptions = {
         `;
 
         const user = rows[0];
-        if (!user) return null;
+        if (!user) throw new Error('Invalid username or password');
 
         const passwordMatch = await bcrypt.compare(
           credentials.password,
           user.password_hash as string
         );
-        if (!passwordMatch) return null;
+        if (!passwordMatch) throw new Error('Incorrect password');
 
         return {
           id: user.id as string,

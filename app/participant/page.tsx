@@ -27,6 +27,7 @@ export default async function ExerciseCataloguePage() {
   const userId = session.user.id;
   let exercises: Exercise[] = [];
   let fetchError = false;
+  let fetchErrorMessage = '';
   let sessionStatusMap = new Map<string, 'active' | 'completed'>();
   let sessionScoreMap = new Map<string, number>();
   let sessionPassedMap = new Map<string, boolean | null>();
@@ -42,8 +43,14 @@ export default async function ExerciseCataloguePage() {
       ORDER BY e.title
     `;
     exercises = rows as unknown as Exercise[];
+  } catch (err) {
+    fetchError = true;
+    fetchErrorMessage = (err as Error).message ?? String(err);
+    console.error('[participant/page] Failed to load exercises:', err);
+  }
 
-    if (exercises.length > 0) {
+  if (!fetchError && exercises.length > 0) {
+    try {
       const ids = exercises.map((e) => e.id);
       const sessions = await sql`
         SELECT exercise_id, closed_at, score, passed,
@@ -84,9 +91,10 @@ export default async function ExerciseCataloguePage() {
           sessionFailReasonsMap.set(eid, reasons);
         }
       }
+    } catch (err) {
+      // Session data failed — exercises still show, just without status
+      console.error('[participant/page] Failed to load session data:', err);
     }
-  } catch {
-    fetchError = true;
   }
 
   return (
@@ -101,7 +109,7 @@ export default async function ExerciseCataloguePage() {
 
           {fetchError && (
             <div className="alert alert-error" style={{ marginBottom: '1rem' }}>
-              Failed to load exercises. Please refresh the page.
+              Failed to load exercises: {fetchErrorMessage || 'Unknown error'}. Please refresh the page.
             </div>
           )}
 
