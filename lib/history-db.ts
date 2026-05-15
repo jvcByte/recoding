@@ -73,7 +73,7 @@ export async function getParticipantHistory(username: string): Promise<HistorySe
           WHERE u.username = ${username}
             AND s.closed_at IS NOT NULL
           ORDER BY s.closed_at DESC
-        `;
+        ` as Record<string, unknown>[];
 
         for (const row of rows) {
           results.push({
@@ -130,7 +130,7 @@ export async function getAllHistoryResults(): Promise<Array<HistorySession & { u
           JOIN users u ON u.id = s.user_id
           WHERE s.closed_at IS NOT NULL
           ORDER BY u.username, s.closed_at DESC
-        `;
+        ` as Record<string, unknown>[];
 
         for (const row of rows) {
           results.push({
