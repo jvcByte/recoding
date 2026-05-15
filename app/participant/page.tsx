@@ -5,6 +5,8 @@ import { sql } from '@/lib/db';
 import Link from 'next/link';
 import Navbar from '@/app/components/Navbar';
 import { InboxIcon } from 'lucide-react';
+import { getParticipantHistory } from '@/lib/history-db';
+import { formatWAT } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,8 +51,7 @@ export default async function ExerciseCataloguePage() {
     console.error('[participant/page] Failed to load exercises:', err);
   }
 
-  if (!fetchError && exercises.length > 0) {
-    try {
+  if (!fetchError && exercises.length > 0) {    try {
       const ids = exercises.map((e) => e.id);
       const sessions = await sql`
         SELECT exercise_id, closed_at, score, passed,
@@ -96,6 +97,9 @@ export default async function ExerciseCataloguePage() {
       console.error('[participant/page] Failed to load session data:', err);
     }
   }
+
+  // Fetch history from past exam DBs
+  const history = await getParticipantHistory(session.user.name ?? '').catch(() => []);
 
   return (
     <div className="page">
@@ -178,6 +182,38 @@ export default async function ExerciseCataloguePage() {
               );
             })}
           </div>
+
+          {/* Past Recoding History */}
+          {history.length > 0 && (
+            <div style={{ marginTop: '2rem' }}>
+              <div className="page-header" style={{ marginBottom: '1rem' }}>
+                <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text)' }}>Past Recoding</h2>
+                <p className="page-sub">Your results from previous recoding sessions.</p>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {history.map((h, i) => (
+                  <div key={i} className="exercise-card" style={{ cursor: 'default' }}>
+                    <div className="exercise-card-info">
+                      <div className="exercise-card-title">{h.exercise_title}</div>
+                      <div className="exercise-card-meta" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                        <span>{h.cohort}</span>
+                        {h.closed_at && <span>{formatWAT(h.closed_at)}</span>}
+                        <span>{h.final_count}/{h.question_count} questions submitted</span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      {h.score !== null && (
+                        <span className={`badge ${h.passed === false ? 'badge-red' : h.passed === true ? 'badge-green' : 'badge-gray'}`} style={{ fontSize: 11 }}>
+                          {Number(h.score).toFixed(1)}%{h.passed === true ? ' ✓ Pass' : h.passed === false ? ' ✗ Fail' : ''}
+                        </span>
+                      )}
+                      <span className="badge badge-gray" style={{ fontSize: 11 }}>Completed</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>
