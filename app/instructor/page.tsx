@@ -10,6 +10,7 @@ import Navbar from '@/app/components/Navbar';
 import { Radio, Users } from 'lucide-react';
 import { getAllHistoryResults, type HistorySession } from '@/lib/history-db';
 import { formatWAT } from '@/lib/format';
+import PastRecodingTable from './PastRecodingTable';
 
 interface Exercise {
   id: string;
@@ -188,56 +189,9 @@ async function PastCohorts() {
       <div className="section-header">
         <span className="section-title">Past Recoding</span>
       </div>
-      {Array.from(cohorts.entries()).map(([cohort, rows]) => {
-        const passed = rows.filter((r) => r.passed === true).length;
-        const failed = rows.filter((r) => r.passed === false).length;
-        return (
-          <div key={cohort} className="card" style={{ marginBottom: '1rem' }}>
-            <div className="card-header">
-              <span className="card-title">{cohort}</span>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <span className="badge badge-green">{passed} passed</span>
-                <span className="badge badge-red">{failed} failed</span>
-                <span className="badge badge-gray">{rows.length} total</span>
-              </div>
-            </div>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Participant</th>
-                    <th>Exercise</th>
-                    <th>Score</th>
-                    <th>Result</th>
-                    <th>Questions</th>
-                    <th>Completed</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r, i) => (
-                    <tr key={i}>
-                      <td style={{ fontWeight: 600 }}>{r.username}</td>
-                      <td>{r.exercise_title}</td>
-                      <td style={{ fontVariantNumeric: 'tabular-nums' }}>
-                        {r.score !== null ? `${Number(r.score).toFixed(1)}%` : '—'}
-                      </td>
-                      <td>
-                        {r.passed === true
-                          ? <span className="badge badge-green">Pass</span>
-                          : r.passed === false
-                            ? <span className="badge badge-red">Fail</span>
-                            : <span className="badge badge-gray">—</span>}
-                      </td>
-                      <td style={{ color: 'var(--text2)' }}>{r.final_count}/{r.question_count}</td>
-                      <td style={{ color: 'var(--text3)' }}>{r.closed_at ? formatWAT(r.closed_at) : '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        );
-      })}
+      {Array.from(cohorts.entries()).map(([cohort, rows]) => (
+        <PastRecodingTable key={cohort} cohort={cohort} rows={rows} />
+      ))}
     </div>
   );
 }
