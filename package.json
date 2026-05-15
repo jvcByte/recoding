@@ -11,7 +11,7 @@
     "migrate": "psql $DATABASE_URL -f migrations/run_all.sql",
     "db:reset": "psql $DATABASE_URL -f migrations/reset_keep_users.sql",
     "test:watch": "vitest",
-    "migrate:fresh": "tsx scripts/migrate.ts fresh && tsx scripts/seed.ts && tsx scripts/import-questions.ts",
+    "migrate:fresh": "tsx scripts/migrate.ts fresh && tsx scripts/seed.ts && tsx scripts/create-users.ts && tsx scripts/import-questions.ts",
     "seed": "tsx scripts/seed.ts",
     "create-users": "tsx scripts/create-users.ts",
     "import-questions": "tsx scripts/import-questions.ts",
