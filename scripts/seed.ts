@@ -81,7 +81,7 @@ async function seedUsers() {
 
 async function seed() {
   await seedExercises();
-  await seedUsers();
+  // await seedUsers();
   console.log('Done.');
 }
 

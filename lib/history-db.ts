@@ -32,6 +32,14 @@ export function getHistoryDbs(): HistoryDb[] {
   return dbs;
 }
 
+export interface HistorySubmission {
+  question_index: number;
+  response_text: string;
+  is_final: boolean;
+  tests_passed: boolean | null;
+  submitted_at: string;
+}
+
 export interface HistorySession {
   cohort: string;
   cohortIndex: number;
@@ -42,6 +50,7 @@ export interface HistorySession {
   closed_at: string | null;
   question_count: number;
   final_count: number;
+  submissions?: HistorySubmission[];
 }
 
 /**
@@ -120,6 +129,7 @@ export async function getAllHistoryResults(): Promise<Array<HistorySession & { u
             e.title        AS exercise_title,
             e.slug         AS exercise_slug,
             e.question_count,
+            s.id           AS session_id,
             s.score,
             s.passed,
             s.closed_at,
@@ -133,6 +143,24 @@ export async function getAllHistoryResults(): Promise<Array<HistorySession & { u
         ` as Record<string, unknown>[];
 
         for (const row of rows) {
+          // Fetch submissions for this session
+          let submissions: HistorySubmission[] = [];
+          try {
+            const subRows = await db.sql`
+              SELECT question_index, response_text, is_final, tests_passed, submitted_at
+              FROM submissions
+              WHERE session_id = ${row.session_id as string}
+              ORDER BY question_index
+            ` as Record<string, unknown>[];
+            submissions = subRows.map((s) => ({
+              question_index: s.question_index as number,
+              response_text: s.response_text as string,
+              is_final: s.is_final as boolean,
+              tests_passed: s.tests_passed as boolean | null,
+              submitted_at: s.submitted_at as string,
+            }));
+          } catch { /* ignore */ }
+
           results.push({
             username: row.username as string,
             cohort: db.label,
@@ -144,6 +172,7 @@ export async function getAllHistoryResults(): Promise<Array<HistorySession & { u
             closed_at: row.closed_at as string | null,
             question_count: row.question_count as number,
             final_count: row.final_count as number,
+            submissions,
           });
         }
       } catch (err) {

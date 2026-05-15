@@ -4,8 +4,11 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Flag, ChevronDown, ChevronRight, ShieldCheck, ShieldX, RotateCcw } from 'lucide-react';
 import SearchInput from '@/app/components/SearchInput';
+import Pagination from '@/app/components/Pagination';
 import { toast } from 'sonner';
 import type { ParticipantRow } from './page';
+
+const PAGE_SIZE = 25;
 
 export default function SubmissionsTable({ participants }: { participants: ParticipantRow[] }) {
   const [search, setSearch] = useState('');
@@ -13,6 +16,7 @@ export default function SubmissionsTable({ participants }: { participants: Parti
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [overriding, setOverriding] = useState<string | null>(null);
   const [localOverride, setLocalOverride] = useState<Record<string, boolean | null>>({});
+  const [page, setPage] = useState(1);
 
   async function handleOverride(sessionId: string, value: boolean | null) {
     setOverriding(sessionId);
@@ -38,7 +42,12 @@ export default function SubmissionsTable({ participants }: { participants: Parti
     return matchSearch && matchFlag;
   });
 
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const flaggedCount = participants.filter((p) => p.is_flagged).length;
+
+  function handleSearch(v: string) { setSearch(v); setPage(1); }
+  function handleFilter(v: boolean) { setFilterFlagged(v); setPage(1); }
 
   function toggleExpand(sessionId: string) {
     setExpanded((prev) => {
@@ -51,10 +60,10 @@ export default function SubmissionsTable({ participants }: { participants: Parti
   return (
     <>
       <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
-        <SearchInput value={search} onChange={setSearch} placeholder="Search by participant…" />
+        <SearchInput value={search} onChange={handleSearch} placeholder="Search by participant…" />
         <button
           className={`btn btn-sm ${filterFlagged ? 'btn-danger' : 'btn-ghost'}`}
-          onClick={() => setFilterFlagged((f) => !f)}
+          onClick={() => handleFilter(!filterFlagged)}
         >
           <Flag size={11} /> {filterFlagged ? `Flagged (${flaggedCount})` : 'Show flagged only'}
         </button>
@@ -82,7 +91,7 @@ export default function SubmissionsTable({ participants }: { participants: Parti
               </tr>
             </thead>
             <tbody>
-              {filtered.map((p) => {
+              {paged.map((p) => {
                 const isExpanded = expanded.has(p.session_id);
                 // local override takes precedence over DB value
                 const effectivePassed = p.session_id in localOverride
@@ -204,6 +213,7 @@ export default function SubmissionsTable({ participants }: { participants: Parti
               })}
             </tbody>
           </table>
+          <Pagination page={page} totalPages={totalPages} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} />
         </div>
       )}
     </>

@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Plus, X, KeyRound, Trash2, AlertTriangle } from 'lucide-react';
 import SearchInput from '@/app/components/SearchInput';
-
+import Pagination from '@/app/components/Pagination';
 import { formatDateWAT } from '@/lib/format';
+
+const PAGE_SIZE = 25;
 
 interface User { id: string; username: string; role: string; created_at: string; }
 interface Props { initialUsers: User[]; currentUserId: string; }
@@ -30,6 +32,11 @@ export default function UserManager({ initialUsers, currentUserId }: Props) {
     u.username.toLowerCase().includes(search.toLowerCase()) ||
     u.role.toLowerCase().includes(search.toLowerCase())
   );
+
+  const [page, setPage] = useState(1);
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  function handleSearch(v: string) { setSearch(v); setPage(1); }
 
   async function handleCreate() {
     if (!newUsername.trim()) { toast.error('Username is required'); return; }
@@ -125,7 +132,7 @@ export default function UserManager({ initialUsers, currentUserId }: Props) {
         <div className="card-header" style={{ padding: '0.85rem 1rem', marginBottom: 0 }}>
           <span className="card-title">All Users</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <SearchInput value={search} onChange={setSearch} placeholder="Search users…" />
+            <SearchInput value={search} onChange={handleSearch} placeholder="Search users…" />
             <span className="badge badge-gray">{filtered.length}</span>
           </div>
         </div>
@@ -137,7 +144,7 @@ export default function UserManager({ initialUsers, currentUserId }: Props) {
             <tbody>
               {filtered.length === 0 ? (
                 <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--text3)', padding: '2rem' }}>No users match "{search}"</td></tr>
-              ) : filtered.map((user) => (
+              ) : paged.map((user) => (
                 <>
                   <tr key={user.id}>
                     <td style={{ fontWeight: 600, color: 'var(--text)' }}>{user.username}</td>
@@ -194,6 +201,7 @@ export default function UserManager({ initialUsers, currentUserId }: Props) {
               ))}
             </tbody>
           </table>
+          <Pagination page={page} totalPages={totalPages} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} />
         </div>
       </div>
     </div>
